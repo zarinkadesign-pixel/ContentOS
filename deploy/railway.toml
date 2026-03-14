@@ -1,0 +1,18 @@
+# astana_v3/railway.toml
+# Railway.app deploy config — бесплатный план (500 ч/мес)
+# Документация: https://docs.railway.app/reference/config-as-code
+
+[build]
+builder = "nixpacks"
+buildCommand = "pip install -r requirements.txt"
+
+[deploy]
+startCommand = "python main.py"
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 5
+
+# Healthcheck — Railway перезапустит если бот завис
+[deploy.healthcheck]
+path     = "/"
+timeout  = 30
+interval = 60
