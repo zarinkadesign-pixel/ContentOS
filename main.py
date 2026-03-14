@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any, Awaitable, Callable, Dict
 
 from aiogram import BaseMiddleware, Bot, Dispatcher
+from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import TelegramObject, Update
@@ -261,7 +262,10 @@ async def main() -> None:
     repo.connect()
 
     # Telegram bot + dispatcher
-    bot = Bot(token=cfg.telegram.bot_token, parse_mode=ParseMode.HTML)
+    bot = Bot(
+        token=cfg.telegram.bot_token,
+        default=DefaultBotProperties(parse_mode=ParseMode.HTML),
+    )
     dp = Dispatcher(storage=MemoryStorage())
 
     # Wire dependency injection
