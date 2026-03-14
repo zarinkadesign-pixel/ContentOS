@@ -1,0 +1,236 @@
+Astana Rent Bot v3 — Telegram Rental Marketplace Platform
+Copyright (c) 2026 AMAImedia.com
+All rights reserved.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PROPRIETARY SOFTWARE LICENSE
+Version 1.0 — March 2026
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+This document constitutes the official license governing the use of the
+Astana Rent Bot v3 platform and all associated materials.
+
+The Work is proprietary software. All rights are reserved by the Licensor.
+
+──────────────────────────────────────────────────────────────────────────────
+1. DEFINITIONS
+──────────────────────────────────────────────────────────────────────────────
+
+"License" means the terms and conditions defined in this document.
+
+"Licensor" means AMAImedia.com, the copyright holder and owner of the Work.
+
+"Author" means Ilia Bolotnikov / AMAImedia.com (2026), creator of the
+Astana Rent Bot v3 platform.
+
+"You" (or "Your") means an individual or legal entity exercising permissions
+granted by this License.
+
+"Work" means the Astana Rent Bot v3 platform including, but not limited to:
+
+  • all Python source code and modules
+  • Telegram bot logic and FSM wizards
+  • AI-powered search engine and Claude API integration
+  • Google Sheets database integration and SheetRepo layer
+  • RandomScheduler publishing algorithm
+  • realtor management and commission calculation system
+  • violation escalation rules and freeze/ban logic
+  • Excel report generation engine
+  • Telegram Mini App (miniapp/index.html)
+  • Railway deployment scripts and configuration
+  • all configuration files, templates, and documentation.
+
+"Derivative Works" means any work that is based upon, derived from,
+or substantially incorporates the Work or any of its components.
+
+"Commercial Use" means any use involving:
+
+  • financial compensation or revenue generation
+  • commercial products or services offered to third parties
+  • SaaS platforms or monetized applications
+  • enterprise or business deployments of any kind.
+
+──────────────────────────────────────────────────────────────────────────────
+2. OWNERSHIP
+──────────────────────────────────────────────────────────────────────────────
+
+The Work is the exclusive property of AMAImedia.com.
+All intellectual property rights remain exclusively with the Licensor.
+
+This License does NOT transfer ownership, patents, trademarks,
+or intellectual property rights of any kind.
+
+──────────────────────────────────────────────────────────────────────────────
+3. PERMITTED USE
+──────────────────────────────────────────────────────────────────────────────
+
+Subject to the terms of this License, the Licensor grants You a limited,
+non-exclusive, non-transferable, non-sublicensable license to:
+
+  (a) deploy and operate the Work for the specific Telegram channel and
+      business entity for which it was commissioned;
+
+  (b) modify configuration files, environment variables, and message
+      strings to adapt the Work to Your operational requirements;
+
+  (c) create private backups of the Work for disaster recovery purposes.
+
+No rights are granted beyond those explicitly stated above.
+
+──────────────────────────────────────────────────────────────────────────────
+4. RESTRICTIONS
+──────────────────────────────────────────────────────────────────────────────
+
+Without prior written permission from the Licensor, You may NOT:
+
+  (a) redistribute, resell, sublicense, or publish the Work or any
+      Derivative Works to third parties;
+
+  (b) use the Work as a basis for a competing rental platform, SaaS
+      product, or any commercial service offered to others;
+
+  (c) use the Work for training datasets, model distillation,
+      or AI model training pipelines;
+
+  (d) remove, alter, or obscure copyright notices, author attribution,
+      or license references in any file;
+
+  (e) misrepresent the origin of the Work or claim authorship of the
+      original Astana Rent Bot v3 system;
+
+  (f) reverse-engineer, decompile, or attempt to extract proprietary
+      algorithms from the Work for use in other products;
+
+  (g) deploy the Work under a different brand or domain without
+      written consent from the Licensor.
+
+──────────────────────────────────────────────────────────────────────────────
+5. PROPRIETARY COMPONENTS
+──────────────────────────────────────────────────────────────────────────────
+
+The following components constitute proprietary intellectual property
+of AMAImedia.com:
+
+  • RandomScheduler algorithm (poster/scheduler.py)
+      — randomised queue with configurable active-hours window,
+        daily cap, and repost interval logic
+
+  • AI Search Engine (bot/ai_search.py)
+      — natural language → SearchFilter JSON pipeline,
+        hard/soft filter separation, relevance scoring,
+        and regex fallback parser
+
+  • Commission Calculation Engine (core/models.py)
+      — sealed constants: COMMISSION_RATE = 0.5,
+        PLATFORM_PCT = 0.60, REALTOR_PCT = 0.40
+
+  • Violation Escalation System (main.py, core/models.py)
+      — configurable freeze/ban thresholds,
+        rating decay, and auto-unfreeze logic
+
+  • SheetRepo Layer (sheets/repository.py)
+      — Google Sheets schema, in-memory deduplication caches,
+        and retry contract for all API operations
+
+  • Excel Report Generator (export/excel_exporter.py)
+      — 3-sheet workbook structure, status colour coding,
+        and in-memory generation (zero temp files)
+
+  • 14-Step Listing FSM (bot/landlord_fsm.py)
+      — state machine design, photo upload handling,
+        and moderation notification flow
+
+──────────────────────────────────────────────────────────────────────────────
+6. SEALED CONSTANTS — NOTICE
+──────────────────────────────────────────────────────────────────────────────
+
+The following business constants are sealed and form part of the
+protected Work. Modification requires written consent from the Licensor:
+
+  COMMISSION_RATE      = 0.50   (50% of monthly rent)
+  PLATFORM_PCT         = 0.60   (platform share of commission)
+  REALTOR_PCT          = 0.40   (realtor share of commission)
+  FREEZE_ON_VIOLATION  = 2      (violations before realtor freeze)
+  BAN_ON_VIOLATION     = 3      (violations before permanent ban)
+  FREEZE_DAYS          = 7      (duration of realtor freeze in days)
+
+──────────────────────────────────────────────────────────────────────────────
+7. COMMERCIAL LICENSING
+──────────────────────────────────────────────────────────────────────────────
+
+Any use of the Work beyond the permitted use defined in Section 3
+requires a separate commercial license agreement.
+
+For licensing inquiries contact:
+
+  AMAImedia.com
+  Email: info@amaimedia.com
+  Phone: +1 716 575 7575
+  Web:   https://amaimedia.com
+
+Commercial licenses are granted at the sole discretion of the Licensor.
+
+──────────────────────────────────────────────────────────────────────────────
+8. TRADEMARKS
+──────────────────────────────────────────────────────────────────────────────
+
+This License does not grant permission to use the trademarks,
+service marks, or product names:
+
+  • Astana Rent Bot
+  • AMAImedia
+  • uztelhome
+
+without prior written permission from the Licensor.
+
+──────────────────────────────────────────────────────────────────────────────
+9. DISCLAIMER OF WARRANTY
+──────────────────────────────────────────────────────────────────────────────
+
+THE WORK IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE,
+AND NON-INFRINGEMENT.
+
+THE LICENSOR DOES NOT WARRANT THAT THE WORK WILL MEET YOUR REQUIREMENTS
+OR THAT ITS OPERATION WILL BE UNINTERRUPTED OR ERROR-FREE.
+
+──────────────────────────────────────────────────────────────────────────────
+10. LIMITATION OF LIABILITY
+──────────────────────────────────────────────────────────────────────────────
+
+IN NO EVENT SHALL THE AUTHOR OR LICENSOR BE LIABLE FOR ANY
+DIRECT, INDIRECT, INCIDENTAL, SPECIAL, OR CONSEQUENTIAL DAMAGES
+ARISING FROM THE USE OR INABILITY TO USE THE WORK, INCLUDING BUT NOT
+LIMITED TO LOSS OF DATA, LOSS OF REVENUE, OR BUSINESS INTERRUPTION.
+
+──────────────────────────────────────────────────────────────────────────────
+11. TERMINATION
+──────────────────────────────────────────────────────────────────────────────
+
+This License automatically terminates if You violate any of its terms.
+
+Upon termination You must cease all use of the Work and destroy all copies
+in Your possession or control.
+
+Sections 2, 4, 5, 9, 10, and 12 survive termination of this License.
+
+──────────────────────────────────────────────────────────────────────────────
+12. GOVERNING LAW
+──────────────────────────────────────────────────────────────────────────────
+
+This License shall be governed by the laws applicable in the
+jurisdiction of the Licensor and applicable international
+copyright law.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+END OF LICENSE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Author:  Ilia Bolotnikov / AMAImedia.com
+Project: Astana Rent Bot v3 — Telegram Rental Marketplace Platform
+Stack:   Python 3.11 · aiogram 3.7 · Google Sheets · Railway · Claude AI
+Channel: @uztelhome · Astana, Kazakhstan
+Date:    March 2026
+
+© 2026 AMAImedia.com. All rights reserved.
