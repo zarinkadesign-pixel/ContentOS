@@ -14,6 +14,9 @@ It is a **completely separate project** from NOESIS DHCF-FNO.
 - Has its own requirements.txt
 - NEVER touch any NOESIS files
 
+**GitHub Repository:** https://github.com/zarinkadesign-pixel/astana-rent-bot
+**Branch:** `main`
+
 ---
 
 ## PYTHON INTERPRETER — MANDATORY
@@ -242,6 +245,56 @@ Current task: [DESCRIBE YOUR TASK HERE]
 Execute all steps autonomously. Verify each file compiles before moving to the next.
 Report: files changed, bugs fixed, any remaining issues.
 ```
+
+---
+
+## GIT COMMANDS
+
+**Repository:** https://github.com/zarinkadesign-pixel/astana-rent-bot
+
+```bat
+cd B:\Downloads\Portable\astana_v3_full\astana_v3
+
+:: Check status — what changed
+git status
+
+:: Stage specific file
+git add <filename>
+
+:: Stage all changes
+git add .
+
+:: SAFETY CHECK — secrets must NOT be staged
+:: If .env or secrets\ appear — unstage immediately:
+git rm -r --cached .env secrets\
+
+:: Commit
+git commit -m "fix: describe what you changed"
+
+:: Push to GitHub
+git push origin main
+
+:: Pull latest from GitHub (before starting work)
+git pull origin main
+
+:: View recent commits
+git log --oneline -10
+```
+
+**Commit message prefixes:**
+| Prefix | When to use |
+|--------|-------------|
+| `feat:` | New feature |
+| `fix:` | Bug fix |
+| `docs:` | Documentation only |
+| `chore:` | Config, deps, cleanup |
+| `refactor:` | Code restructure, no behaviour change |
+
+**NEVER commit:**
+- `.env` — contains tokens and API keys
+- `secrets\` — contains Google Service Account JSON
+- `logs\` — runtime logs
+- `venv\` — Python virtual environment
 
 ---
 
