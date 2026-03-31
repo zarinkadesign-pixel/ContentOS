@@ -3,11 +3,13 @@ import { AGENTS } from "@/lib/agents";
 import { callGemini, buildClientContext } from "@/lib/gemini";
 import { getClients } from "@/lib/kv";
 
-type Params = { params: { type: string } };
-
-export async function POST(req: NextRequest, { params }: Params) {
-  const agent = AGENTS[params.type];
-  if (!agent) return NextResponse.json({ detail: `Unknown agent: ${params.type}` }, { status: 400 });
+export async function POST(
+  req: NextRequest,
+  { params }: { params: Promise<{ type: string }> }
+) {
+  const { type } = await params;
+  const agent = AGENTS[type];
+  if (!agent) return NextResponse.json({ detail: `Unknown agent: ${type}` }, { status: 400 });
 
   const { client_id, extra = "" } = await req.json();
   const clients = await getClients();
@@ -18,5 +20,5 @@ export async function POST(req: NextRequest, { params }: Params) {
   const prompt  = agent.prompt.replace("{context}", context).replace("{extra}", extra);
   const result  = await callGemini(agent.system, prompt);
 
-  return NextResponse.json({ agent: params.type, result });
+  return NextResponse.json({ agent: type, result });
 }
