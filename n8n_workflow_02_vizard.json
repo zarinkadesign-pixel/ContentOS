@@ -1,0 +1,199 @@
+{
+  "name": "02 — Google Drive → Vizard → Reels",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [{ "mode": "everyMinute" }]
+        },
+        "triggerOn": "specificFolder",
+        "folderToWatch": {
+          "__rl": true,
+          "value": "Podcasts",
+          "mode": "name"
+        },
+        "event": "fileCreated",
+        "options": {}
+      },
+      "id": "node-drive-trigger",
+      "name": "Google Drive — новый файл",
+      "type": "n8n-nodes-base.googleDriveTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://elb-api.vizard.ai/hvizard-server-front/open-api/v1/project/create",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "VIZARDAI_API_KEY", "value": "732bfd910eb24627a4bad11e5761575a" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"videoUrl\": \"{{ $json.webViewLink }}\",\n  \"videoType\": 1,\n  \"lang\": \"ru\",\n  \"preferLength\": [2],\n  \"maxClipNumber\": 15,\n  \"ratioOfClip\": 4,\n  \"subtitleSwitch\": 1,\n  \"emojiSwitch\": 1,\n  \"highlightSwitch\": 1,\n  \"headlineSwitch\": 1,\n  \"removeSilenceSwitch\": 1\n}",
+        "options": {}
+      },
+      "id": "node-vizard-create",
+      "name": "Vizard — создать проект",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "amount": 20,
+        "unit": "minutes"
+      },
+      "id": "node-wait-1",
+      "name": "Ждать 20 минут",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://elb-api.vizard.ai/hvizard-server-front/open-api/v1/project/query/{{ $('Vizard — создать проект').item.json.data.projectId }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "VIZARDAI_API_KEY", "value": "732bfd910eb24627a4bad11e5761575a" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-vizard-query",
+      "name": "Vizard — получить клипы",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [920, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $json.data.videos.length }}",
+              "rightValue": 0,
+              "operator": { "type": "number", "operation": "gt" }
+            }
+          ]
+        }
+      },
+      "id": "node-check-clips",
+      "name": "Клипы готовы?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1140, 300]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "data.videos",
+        "options": {}
+      },
+      "id": "node-split",
+      "name": "Разбить по клипам",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [1360, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=AIzaSyB37bqKJ7VAJcfV72iQgdqO6QCFPIvDt8U",
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"contents\": [{\n    \"role\": \"user\",\n    \"parts\": [{\n      \"text\": \"Напиши подпись для Instagram Reels на тему: {{ $json.title }}. Хук (1 предложение) + основная мысль (2-3 предложения) + призыв к действию + 5 хэштегов. Не более 150 слов.\"\n    }]\n  }]\n}",
+        "options": {}
+      },
+      "id": "node-gemini-caption",
+      "name": "Gemini — подпись",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1580, 200]
+    },
+    {
+      "parameters": {
+        "functionCode": "const clip = $('Разбить по клипам').item.json;\nconst caption = $json.candidates[0].content.parts[0].text;\nconst videoId = clip.videoId;\n\nconst score = parseFloat(clip.viralScore) || 0;\nconst daysFromNow = $runIndex * 2;\nconst publishTime = Date.now() + (daysFromNow * 24 * 60 * 60 * 1000);\n\nreturn [{\n  json: {\n    videoId: videoId,\n    title: clip.title,\n    viralScore: score,\n    caption: caption,\n    publishTime: publishTime,\n    publishDate: new Date(publishTime).toLocaleDateString('ru-RU')\n  }\n}];"
+      },
+      "id": "node-prepare",
+      "name": "Подготовить публикацию",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1800, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://elb-api.vizard.ai/hvizard-server-front/open-api/v1/project/publish-video",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "VIZARDAI_API_KEY", "value": "732bfd910eb24627a4bad11e5761575a" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"finalVideoId\": {{ $json.videoId }},\n  \"post\": \"{{ $json.caption }}\",\n  \"publishTime\": {{ $json.publishTime }}\n}",
+        "options": {}
+      },
+      "id": "node-publish",
+      "name": "Vizard — опубликовать",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [2020, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot8494012171:AAFTbhHTS0WxlG6PE6DRn96nVVF4kKfBKtY/sendMessage",
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"chat_id\": \"{{ $('Google Drive — новый файл').item.json.owners[0].emailAddress }}\",\n  \"text\": \"✅ Vizard готов! Нарезано клипов: {{ $('Vizard — получить клипы').item.json.data.videos.length }}. Первый выйдет {{ $('Подготовить публикацию').item.json.publishDate }}\"\n}",
+        "options": {}
+      },
+      "id": "node-notify",
+      "name": "Telegram — уведомить",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1360, 460]
+    }
+  ],
+  "connections": {
+    "Google Drive — новый файл": {
+      "main": [[{ "node": "Vizard — создать проект", "type": "main", "index": 0 }]]
+    },
+    "Vizard — создать проект": {
+      "main": [[{ "node": "Ждать 20 минут", "type": "main", "index": 0 }]]
+    },
+    "Ждать 20 минут": {
+      "main": [[{ "node": "Vizard — получить клипы", "type": "main", "index": 0 }]]
+    },
+    "Vizard — получить клипы": {
+      "main": [[{ "node": "Клипы готовы?", "type": "main", "index": 0 }]]
+    },
+    "Клипы готовы?": {
+      "main": [
+        [{ "node": "Разбить по клипам", "type": "main", "index": 0 }],
+        [{ "node": "Telegram — уведомить", "type": "main", "index": 0 }]
+      ]
+    },
+    "Разбить по клипам": {
+      "main": [[{ "node": "Gemini — подпись", "type": "main", "index": 0 }]]
+    },
+    "Gemini — подпись": {
+      "main": [[{ "node": "Подготовить публикацию", "type": "main", "index": 0 }]]
+    },
+    "Подготовить публикацию": {
+      "main": [[{ "node": "Vizard — опубликовать", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "tags": []
+}

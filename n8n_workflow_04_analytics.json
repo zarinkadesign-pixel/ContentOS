@@ -1,0 +1,71 @@
+{
+  "name": "04 — Еженедельная аналитика → Telegram",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{"field": "cronExpression", "expression": "0 20 * * 0"}]
+        }
+      },
+      "id": "node-cron-001",
+      "name": "Каждое воскресенье 20:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "try {\n  const fs = require('fs');\n  const leads = JSON.parse(fs.readFileSync('D:/Content OS/pc_data/leads.json','utf8') || '[]');\n  const clients = JSON.parse(fs.readFileSync('D:/Content OS/pc_data/clients.json','utf8') || '[]');\n  const fin = JSON.parse(fs.readFileSync('D:/Content OS/pc_data/finance.json','utf8') || '{\"income\":[]}');\n  const income = fin.income.reduce((a,t) => a + (t.amount||0), 0);\n  const newLeads = leads.filter(l => l.stage === 'new').length;\n  const onCall = leads.filter(l => l.stage === 'call').length;\n  return [{json: {\n    total_leads: leads.length,\n    new_leads: newLeads,\n    on_call: onCall,\n    clients: clients.length,\n    income: income,\n    kpi_pct: Math.round(income / 20000 * 100)\n  }}];\n} catch(e) {\n  return [{json: {error: e.message}}];\n}"
+      },
+      "id": "node-cron-002",
+      "name": "Собрать статистику",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=AIzaSyB37bqKJ7VAJcfV72iQgdqO6QCFPIvDt8U",
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"Напиши недельный отчёт для директора продюсерского агентства.\\nДанные за неделю:\\n- Лидов всего: {{ $json.total_leads }}\\n- Новых лидов: {{ $json.new_leads }}\\n- На созвоне: {{ $json.on_call }}\\n- Клиентов: {{ $json.clients }}\\n- Доход: ${{ $json.income }}\\n- KPI выполнен на: {{ $json.kpi_pct }}%\\n\\nФормат: 1) Итоги недели 2) Что хорошо 3) Что улучшить 4) ТОП-3 задачи на следующую неделю. Кратко.\"}]}]}",
+        "options": {}
+      },
+      "id": "node-cron-003",
+      "name": "Gemini отчёт",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [720, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot8494012171:AAFTbhHTS0WxlG6PE6DRn96nVVF4kKfBKtY/sendMessage",
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\"chat_id\":\"905075336\",\"text\":\"НЕДЕЛЬНЫЙ ОТЧЁТ\\n\\n{{ $json.candidates[0].content.parts[0].text }}\",\"parse_mode\":\"HTML\"}",
+        "options": {}
+      },
+      "id": "node-cron-004",
+      "name": "Отправить в Telegram",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [960, 300]
+    }
+  ],
+  "connections": {
+    "Каждое воскресенье 20:00": {
+      "main": [[{"node": "Собрать статистику", "type": "main", "index": 0}]]
+    },
+    "Собрать статистику": {
+      "main": [[{"node": "Gemini отчёт", "type": "main", "index": 0}]]
+    },
+    "Gemini отчёт": {
+      "main": [[{"node": "Отправить в Telegram", "type": "main", "index": 0}]]
+    }
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "tags": []
+}

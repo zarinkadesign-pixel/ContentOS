@@ -1,0 +1,101 @@
+{
+  "name": "02 — Vizard → Reels (запуск вручную)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "vizard-start",
+        "options": {}
+      },
+      "id": "node-001",
+      "name": "Webhook старт",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "vizard-start-001"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://elb-api.vizard.ai/hvizard-server-front/open-api/v1/project/create",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {"name": "VIZARDAI_API_KEY", "value": "732bfd910eb24627a4bad11e5761575a"},
+            {"name": "Content-Type", "value": "application/json"}
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\"videoUrl\":\"{{ $json.url }}\",\"videoType\":1,\"lang\":\"ru\",\"preferLength\":[2],\"maxClipNumber\":15,\"ratioOfClip\":4,\"subtitleSwitch\":1,\"emojiSwitch\":1,\"highlightSwitch\":1,\"removeSilenceSwitch\":1}",
+        "options": {}
+      },
+      "id": "node-002",
+      "name": "Vizard создать проект",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "amount": 20,
+        "unit": "minutes"
+      },
+      "id": "node-003",
+      "name": "Ждать 20 минут",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [720, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://elb-api.vizard.ai/hvizard-server-front/open-api/v1/project/query/{{ $('Vizard создать проект').item.json.data.projectId }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {"name": "VIZARDAI_API_KEY", "value": "732bfd910eb24627a4bad11e5761575a"}
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-004",
+      "name": "Vizard получить клипы",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [960, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot8494012171:AAFTbhHTS0WxlG6PE6DRn96nVVF4kKfBKtY/sendMessage",
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\"chat_id\":\"{{ $('Webhook старт').item.json.chat_id }}\",\"text\":\"Vizard готов! Клипов: {{ $json.data.videos.length }}. Проверь vizard.ai\"}",
+        "options": {}
+      },
+      "id": "node-005",
+      "name": "Telegram уведомление",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1200, 300]
+    }
+  ],
+  "connections": {
+    "Webhook старт": {
+      "main": [[{"node": "Vizard создать проект", "type": "main", "index": 0}]]
+    },
+    "Vizard создать проект": {
+      "main": [[{"node": "Ждать 20 минут", "type": "main", "index": 0}]]
+    },
+    "Ждать 20 минут": {
+      "main": [[{"node": "Vizard получить клипы", "type": "main", "index": 0}]]
+    },
+    "Vizard получить клипы": {
+      "main": [[{"node": "Telegram уведомление", "type": "main", "index": 0}]]
+    }
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "tags": []
+}

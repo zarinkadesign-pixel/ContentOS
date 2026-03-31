@@ -1,14 +1,22 @@
-venv/
 __pycache__/
 *.pyc
 *.pyo
+*.pyd
+*.session
 .env
-secrets/
-logs/
+.env.*
 *.log
-.DS_Store
+*.tmp
+pc_data/
+venv/
+.venv/
 *.egg-info/
 dist/
 build/
-*.zip
 .claude/
+python/
+python_embedded/
+pip/
+cd
+operable
+Content OS.zip

@@ -1,0 +1,46 @@
+[
+  {
+    "id": 1774884252,
+    "name": "Светлана Миронова",
+    "source": "telegram",
+    "contact": "@svetlana_coach",
+    "niche": "Коучинг",
+    "product": "unknown",
+    "stage": "interested",
+    "date": "30.03",
+    "notes": ""
+  },
+  {
+    "id": 1774884252,
+    "name": "ФитЛайф Студия",
+    "source": "gis",
+    "contact": "+7 921 555-1234",
+    "niche": "Фитнес",
+    "product": "unknown",
+    "stage": "call",
+    "date": "30.03",
+    "notes": ""
+  },
+  {
+    "id": 1774884252,
+    "name": "Наталья Волкова",
+    "source": "instagram",
+    "contact": "@natasha_nutri",
+    "niche": "Нутрициология",
+    "product": "unknown",
+    "stage": "replied",
+    "date": "30.03",
+    "notes": ""
+  },
+  {
+    "id": 1774884252,
+    "name": "Дмитрий Соколов",
+    "source": "ads",
+    "contact": "@dmitry_biz",
+    "niche": "Бизнес",
+    "product": "unknown",
+    "stage": "new",
+    "date": "30.03",
+    "notes": ""
+  }
+]
