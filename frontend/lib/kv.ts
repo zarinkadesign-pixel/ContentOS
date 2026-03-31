@@ -105,3 +105,10 @@ export async function getFinance(): Promise<any> {
   return data;
 }
 export async function saveFinance(finance: any): Promise<void> { await kvSet("finance", finance); }
+
+export async function getSettings(): Promise<any> {
+  let data = await kvGet<any>("settings");
+  if (!data) { data = { monthly_target: 20000, company_name: "AMAImedia" }; await kvSet("settings", data); }
+  return data;
+}
+export async function saveSettings(settings: any): Promise<void> { await kvSet("settings", settings); }

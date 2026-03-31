@@ -16,13 +16,16 @@ export async function POST(req: NextRequest) {
   };
   finance.transactions = [tx, ...(finance.transactions ?? [])];
 
-  // Update monthly chart for current month
-  const month = new Date().toLocaleString("ru", { month: "short" });
+  // Update monthly chart for current month (income → revenue, expense → expenses)
+  const month  = new Date().toLocaleString("ru", { month: "short" });
   const monthly = finance.monthly ?? [];
   const mIdx    = monthly.findIndex((m: any) => m.month === month);
   if (tx.type === "income") {
-    if (mIdx >= 0) monthly[mIdx].revenue += tx.amount;
-    else monthly.push({ month, revenue: tx.amount });
+    if (mIdx >= 0) monthly[mIdx].revenue = (monthly[mIdx].revenue ?? 0) + tx.amount;
+    else monthly.push({ month, revenue: tx.amount, expenses: 0 });
+  } else {
+    if (mIdx >= 0) monthly[mIdx].expenses = (monthly[mIdx].expenses ?? 0) + tx.amount;
+    else monthly.push({ month, revenue: 0, expenses: tx.amount });
   }
   finance.monthly = monthly;
 

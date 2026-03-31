@@ -1,14 +1,16 @@
 import { NextResponse } from "next/server";
-import { getClients, getLeads, getFinance } from "@/lib/kv";
+import { getClients, getLeads, getFinance, getSettings } from "@/lib/kv";
 
 export async function GET() {
-  const [clients, leads, finance] = await Promise.all([getClients(), getLeads(), getFinance()]);
+  const [clients, leads, finance, settings] = await Promise.all([
+    getClients(), getLeads(), getFinance(), getSettings(),
+  ]);
 
   const transactions = finance.transactions ?? [];
   const totalRevenue = transactions
     .filter((t: any) => t.type === "income")
     .reduce((s: number, t: any) => s + t.amount, 0);
-  const monthlyTarget = 20_000;
+  const monthlyTarget = settings?.monthly_target ?? 20_000;
 
   const stageCount: Record<string, number> = {};
   for (const lead of leads) {

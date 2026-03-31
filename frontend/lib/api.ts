@@ -21,13 +21,21 @@ export const deleteClient  = (id: string)  => req<void>(`/api/clients/${id}`, { 
 
 export const getLeads      = ()          => req<any[]>("/api/leads");
 export const createLead    = (data: any)   => req<any>("/api/leads", { method: "POST", body: JSON.stringify(data) });
+export const updateLead    = (id: string, data: any) =>
+  req<any>(`/api/leads/${id}`, { method: "PUT", body: JSON.stringify(data) });
 export const moveLead      = (id: string, stage: string) =>
   req<any>(`/api/leads/${id}/stage`, { method: "PUT", body: JSON.stringify({ stage }) });
 export const deleteLead    = (id: string)  => req<void>(`/api/leads/${id}`, { method: "DELETE" });
 
-export const getFinance    = ()          => req<any>("/api/finance");
-export const addTransaction = (data: any) =>
+export const getFinance       = ()           => req<any>("/api/finance");
+export const addTransaction   = (data: any)  =>
   req<any>("/api/finance/transactions", { method: "POST", body: JSON.stringify(data) });
+export const deleteTransaction = (id: string) =>
+  req<void>(`/api/finance/transactions/${id}`, { method: "DELETE" });
+
+export const getSettings    = ()           => req<any>("/api/settings");
+export const updateSettings = (data: any)  =>
+  req<any>("/api/settings", { method: "PUT", body: JSON.stringify(data) });
 
 export const getAgents     = ()          => req<any[]>("/api/agents");
 export const runAgent      = (type: string, clientId: string, extra = "") =>

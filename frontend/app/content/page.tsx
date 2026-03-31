@@ -20,6 +20,10 @@ export default function Content() {
 
   async function handleClip() {
     if (!videoUrl.trim()) return;
+    try { new URL(videoUrl); } catch {
+      setStatus("Ошибка: введите корректный URL (https://...)");
+      return;
+    }
     setLoading(true); setStatus("Создаём проект…");
     try {
       const res = await clipVideo(videoUrl);
@@ -57,7 +61,7 @@ export default function Content() {
   }
 
   async function handlePublish() {
-    if (!caption) return;
+    if (!caption || !projectId) return;
     setLoading(true); setStatus("Публикуем…");
     try {
       await publishVideo(projectId, caption, publishAt);
@@ -88,6 +92,13 @@ export default function Content() {
         <h1 className="text-xl font-bold text-text">Контент / Vizard</h1>
         <p className="text-sm text-subtext mt-0.5">AI автоклипы из подкастов и видео</p>
       </div>
+
+      {/* VIZARD_KEY warning — shown when API returns that error */}
+      {status.includes("VIZARD_KEY") && (
+        <div className="card border-yellow-500/30 bg-yellow-500/5 text-sm text-yellow-400 p-3">
+          ⚠️ <strong>VIZARD_KEY</strong> не задан. Добавьте переменную окружения в <code>.env.local</code> и перезапустите сервер.
+        </div>
+      )}
 
       {/* Steps */}
       <div className="flex gap-2">
@@ -194,7 +205,7 @@ export default function Content() {
           </div>
           <div className="flex gap-2">
             <button onClick={() => setStep("social")} className="btn-ghost">← Назад</button>
-            <button onClick={handlePublish} disabled={loading || !caption} className="btn-primary flex items-center gap-2">
+            <button onClick={handlePublish} disabled={loading || !caption || !projectId} className="btn-primary flex items-center gap-2">
               {loading ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
               Опубликовать
             </button>

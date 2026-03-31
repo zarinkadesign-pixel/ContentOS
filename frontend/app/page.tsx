@@ -1,15 +1,18 @@
 "use client";
 import { useEffect, useState } from "react";
-import { getDashboard } from "@/lib/api";
+import { getDashboard, getSettings, updateSettings } from "@/lib/api";
 import KPICard from "@/components/KPICard";
-import { DollarSign, Users, TrendingUp, Target, Zap, RefreshCw } from "lucide-react";
+import { DollarSign, Users, TrendingUp, Target, Zap, RefreshCw, Edit2, Check, X } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { STAGE_LABELS, STAGE_COLORS } from "@/lib/types";
 import clsx from "clsx";
 
 export default function Dashboard() {
-  const [data, setData]     = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const [data, setData]           = useState<any>(null);
+  const [loading, setLoading]     = useState(true);
+  const [editTarget, setEditTarget] = useState(false);
+  const [targetDraft, setTargetDraft] = useState("");
+  const [savingTarget, setSavingTarget] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -20,10 +23,27 @@ export default function Dashboard() {
 
   useEffect(() => { load(); }, []);
 
+  async function saveTarget() {
+    const val = parseInt(targetDraft, 10);
+    if (isNaN(val) || val <= 0) return;
+    setSavingTarget(true);
+    try {
+      await updateSettings({ monthly_target: val });
+      await load();
+      setEditTarget(false);
+    } catch (e) { console.error(e); }
+    finally { setSavingTarget(false); }
+  }
+
   if (loading) return <div className="flex items-center justify-center h-64 text-subtext">Загрузка…</div>;
   if (!data)   return <div className="text-red-400">Ошибка загрузки. Проверь, запущен ли бэкенд.</div>;
 
   const { kpi, lead_stages, recent_clients, monthly_chart } = data;
+
+  function openTargetEdit() {
+    setTargetDraft(String(kpi.monthly_target));
+    setEditTarget(true);
+  }
 
   return (
     <div className="space-y-6">
@@ -43,16 +63,48 @@ export default function Dashboard() {
         <KPICard label="Выручка" value={`$${kpi.total_revenue.toLocaleString()}`}
           sub={`цель $${kpi.monthly_target.toLocaleString()}`} icon={DollarSign} color="green" />
         <KPICard label="Прогресс к цели" value={`${kpi.progress_pct}%`}
-          sub="от $20 000 / мес" icon={Target} color="accent" />
+          sub={`от $${kpi.monthly_target.toLocaleString()} / мес`} icon={Target} color="accent" />
         <KPICard label="Клиентов" value={kpi.total_clients} icon={Users} color="yellow" />
         <KPICard label="Лидов" value={kpi.total_leads} icon={TrendingUp} color="red" />
       </div>
 
-      {/* Progress bar */}
+      {/* Progress bar with editable target */}
       <div className="card">
         <div className="flex items-center justify-between mb-3">
           <span className="text-sm font-medium text-text">Прогресс к цели месяца</span>
-          <span className="text-sm font-bold text-accent">{kpi.progress_pct}%</span>
+          <div className="flex items-center gap-2">
+            {editTarget ? (
+              <>
+                <span className="text-xs text-subtext">$</span>
+                <input
+                  className="input w-28 text-right text-sm py-1"
+                  type="number"
+                  min={1}
+                  value={targetDraft}
+                  onChange={e => setTargetDraft(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter") saveTarget(); if (e.key === "Escape") setEditTarget(false); }}
+                  autoFocus
+                />
+                <button onClick={saveTarget} disabled={savingTarget}
+                  className="p-1 text-accent hover:bg-accent/10 rounded transition-colors">
+                  <Check size={14} />
+                </button>
+                <button onClick={() => setEditTarget(false)}
+                  className="p-1 text-subtext hover:text-text hover:bg-white/5 rounded transition-colors">
+                  <X size={14} />
+                </button>
+              </>
+            ) : (
+              <>
+                <span className="text-sm font-bold text-accent">{kpi.progress_pct}%</span>
+                <button onClick={openTargetEdit}
+                  className="p-1 text-subtext hover:text-accent hover:bg-accent/10 rounded transition-colors"
+                  title="Изменить цель">
+                  <Edit2 size={12} />
+                </button>
+              </>
+            )}
+          </div>
         </div>
         <div className="h-2 bg-border rounded-full overflow-hidden">
           <div
@@ -62,7 +114,9 @@ export default function Dashboard() {
         </div>
         <div className="flex justify-between text-xs text-subtext mt-2">
           <span>$0</span>
-          <span>$20 000</span>
+          <span className="flex items-center gap-1">
+            ${kpi.monthly_target.toLocaleString()}
+          </span>
         </div>
       </div>
 
