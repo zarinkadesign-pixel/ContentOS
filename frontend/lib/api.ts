@@ -41,6 +41,18 @@ export const getAgents     = ()          => req<any[]>("/api/agents");
 export const runAgent      = (type: string, clientId: string, extra = "") =>
   req<any>(`/api/agents/${type}`, { method: "POST", body: JSON.stringify({ client_id: clientId, extra }) });
 
+// ── Workspace ─────────────────────────────────────────────────────────────────
+export const getTasks       = ()                   => req<any[]>("/api/workspace/tasks");
+export const createTask     = (data: any)          => req<any>("/api/workspace/tasks",       { method: "POST", body: JSON.stringify(data) });
+export const updateTask     = (id: string, data: any) => req<any>(`/api/workspace/tasks/${id}`, { method: "PUT",  body: JSON.stringify(data) });
+export const deleteTask     = (id: string)         => req<void>(`/api/workspace/tasks/${id}`,  { method: "DELETE" });
+export const getTimeSessions = ()                  => req<any>("/api/workspace/time");
+export const startTimer     = (category = "", note = "") =>
+  req<any>("/api/workspace/time", { method: "POST", body: JSON.stringify({ action: "start", category, note }) });
+export const stopTimer      = ()                   =>
+  req<any>("/api/workspace/time", { method: "POST", body: JSON.stringify({ action: "stop" }) });
+export const getWorkspaceStats = ()               => req<any>("/api/workspace/stats");
+
 export const clipVideo     = (videoUrl: string, language = "ru") =>
   req<any>("/api/vizard/clip", { method: "POST", body: JSON.stringify({ video_url: videoUrl, language }) });
 export const getProject    = (id: string)  => req<any>(`/api/vizard/project/${id}`);

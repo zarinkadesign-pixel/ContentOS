@@ -112,3 +112,35 @@ export async function getSettings(): Promise<any> {
   return data;
 }
 export async function saveSettings(settings: any): Promise<void> { await kvSet("settings", settings); }
+
+// ── Workspace ─────────────────────────────────────────────────────────────────
+function makeDemoTasks() {
+  const today = new Date().toISOString().slice(0, 10);
+  const eow   = (() => { const d = new Date(); d.setDate(d.getDate() + (7 - d.getDay())); return d.toISOString().slice(0, 10); })();
+  const eom   = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().slice(0, 10);
+  return [
+    { id: "task_1", title: "Снять Reels для клиента", description: "Алина Мороз — рецепт недели", period: "day",   due_date: today, priority: "high",   status: "todo",        created_at: new Date().toISOString(), completed_at: null, tags: ["контент"] },
+    { id: "task_2", title: "Написать контент-план",   description: "На следующую неделю",             period: "week",  due_date: eow,   priority: "medium", status: "in_progress", created_at: new Date().toISOString(), completed_at: null, tags: ["стратегия"] },
+    { id: "task_3", title: "Онбординг нового клиента",description: "Заполнить анкету бренда",          period: "week",  due_date: eow,   priority: "high",   status: "todo",        created_at: new Date().toISOString(), completed_at: null, tags: ["клиенты"] },
+    { id: "task_4", title: "Закрыть 3 лида",          description: "Конверсия из звонка в договор",   period: "month", due_date: eom,   priority: "high",   status: "todo",        created_at: new Date().toISOString(), completed_at: null, tags: ["продажи"] },
+    { id: "task_5", title: "Обновить стратегию",      description: "Ревизия воронки Q2",              period: "month", due_date: eom,   priority: "low",    status: "todo",        created_at: new Date().toISOString(), completed_at: null, tags: ["стратегия"] },
+  ];
+}
+
+export async function getTasks(): Promise<any[]> {
+  let data = await kvGet<any[]>("workspace_tasks");
+  if (!data) { data = makeDemoTasks(); await kvSet("workspace_tasks", data); }
+  return data;
+}
+export async function saveTasks(tasks: any[]): Promise<void> { await kvSet("workspace_tasks", tasks); }
+
+export async function getTimeSessions(): Promise<any[]> {
+  const data = await kvGet<any[]>("workspace_sessions");
+  return data ?? [];
+}
+export async function saveTimeSessions(sessions: any[]): Promise<void> { await kvSet("workspace_sessions", sessions); }
+
+export async function getActiveSession(): Promise<any | null> {
+  return kvGet<any>("workspace_active");
+}
+export async function saveActiveSession(session: any | null): Promise<void> { await kvSet("workspace_active", session); }

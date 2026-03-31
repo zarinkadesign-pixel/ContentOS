@@ -3,16 +3,17 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, Users, Kanban, DollarSign,
-  Video, ChevronRight, Zap,
+  Video, ChevronRight, Zap, LayoutGrid,
 } from "lucide-react";
 import clsx from "clsx";
 
 const NAV = [
-  { href: "/",        label: "Дашборд",  icon: LayoutDashboard },
-  { href: "/crm",     label: "CRM",      icon: Kanban },
-  { href: "/clients", label: "Клиенты",  icon: Users },
-  { href: "/finance", label: "Финансы",  icon: DollarSign },
-  { href: "/content", label: "Контент",  icon: Video },
+  { href: "/",          label: "Дашборд",  icon: LayoutDashboard },
+  { href: "/workspace", label: "Кабинет",  icon: LayoutGrid },
+  { href: "/crm",       label: "CRM",      icon: Kanban },
+  { href: "/clients",   label: "Клиенты",  icon: Users },
+  { href: "/finance",   label: "Финансы",  icon: DollarSign },
+  { href: "/content",   label: "Контент",  icon: Video },
 ];
 
 export default function Sidebar() {

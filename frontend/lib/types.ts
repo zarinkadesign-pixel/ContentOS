@@ -54,6 +54,34 @@ export interface KPI {
   total_leads: number;
 }
 
+// ── Workspace / Personal cabinet ─────────────────────────────────────────────
+export type TaskPeriod   = "day" | "week" | "month";
+export type TaskStatus   = "todo" | "in_progress" | "done";
+export type TaskPriority = "low" | "medium" | "high";
+
+export interface Task {
+  id:           string;
+  title:        string;
+  description:  string;
+  period:       TaskPeriod;
+  due_date:     string;          // ISO date YYYY-MM-DD
+  priority:     TaskPriority;
+  status:       TaskStatus;
+  created_at:   string;          // ISO datetime
+  completed_at: string | null;
+  tags:         string[];
+}
+
+export interface TimeSession {
+  id:        string;
+  start:     string;   // ISO datetime
+  end:       string;   // ISO datetime
+  duration:  number;   // minutes
+  category:  string;
+  note:      string;
+}
+
+// ── Leads pipeline ─────────────────────────────────────────────────────────────
 export const STAGE_ORDER = ["new", "contacted", "replied", "interested", "call", "contract"] as const;
 export type Stage = typeof STAGE_ORDER[number];
 
