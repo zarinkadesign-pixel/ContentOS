@@ -1,0 +1,37 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* { box-sizing: border-box; }
+
+body {
+  background-color: #050710;
+  color: #e2e8f0;
+  font-family: "Inter", ui-sans-serif, system-ui;
+  margin: 0;
+}
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #08091c; }
+::-webkit-scrollbar-thumb { background: #1a1f3a; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #6c63ff; }
+
+@layer components {
+  .card {
+    @apply bg-card border border-border rounded-xl p-5;
+  }
+  .btn-primary {
+    @apply bg-accent hover:bg-accent2 text-white font-medium px-4 py-2 rounded-lg transition-colors text-sm;
+  }
+  .btn-ghost {
+    @apply border border-border hover:border-accent text-subtext hover:text-text px-4 py-2 rounded-lg transition-colors text-sm;
+  }
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+  .input {
+    @apply bg-nav border border-border rounded-lg px-3 py-2 text-text text-sm w-full
+           focus:outline-none focus:border-accent placeholder-muted;
+  }
+}
