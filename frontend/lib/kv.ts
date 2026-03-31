@@ -1,17 +1,23 @@
-// Vercel KV wrapper — production: Vercel KV (Redis), dev: in-memory fallback
-import { kv } from "@vercel/kv";
+// Upstash Redis wrapper — production: Upstash Redis, dev: in-memory fallback
+import { Redis } from "@upstash/redis";
 
-// ── In-memory fallback for local dev without KV credentials ──────────────────
+// ── In-memory fallback for local dev without Redis credentials ───────────────
 const mem: Record<string, unknown> = {};
-function isKVAvailable() {
-  return !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
+function isRedisAvailable() {
+  return !!(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
+}
+function getRedis() {
+  return new Redis({
+    url:   process.env.UPSTASH_REDIS_REST_URL!,
+    token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+  });
 }
 async function kvGet<T>(key: string): Promise<T | null> {
-  if (isKVAvailable()) return kv.get<T>(key);
+  if (isRedisAvailable()) return getRedis().get<T>(key);
   return (mem[key] as T) ?? null;
 }
 async function kvSet(key: string, value: unknown): Promise<void> {
-  if (isKVAvailable()) { await kv.set(key, value); return; }
+  if (isRedisAvailable()) { await getRedis().set(key, value); return; }
   mem[key] = value;
 }
 
