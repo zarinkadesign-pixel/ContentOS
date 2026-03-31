@@ -1,0 +1,3 @@
+@echo off
+cd /d "D:\Content OS\frontend"
+node node_modules\next\dist\bin\next dev
