@@ -53,6 +53,12 @@ export const stopTimer      = ()                   =>
   req<any>("/api/workspace/time", { method: "POST", body: JSON.stringify({ action: "stop" }) });
 export const getWorkspaceStats = ()               => req<any>("/api/workspace/stats");
 
+// ── AI Agency Team ────────────────────────────────────────────────────────────
+export const getTeamTasks   = ()           => req<any[]>("/api/team/tasks");
+export const runTeamTask    = (data: { worker_id: string; client_id: string; point_a?: string; extra?: string }) =>
+  req<any>("/api/team/tasks", { method: "POST", body: JSON.stringify(data) });
+export const deleteTeamTask = (id: string) => req<void>(`/api/team/tasks/${id}`, { method: "DELETE" });
+
 export const clipVideo     = (videoUrl: string, language = "ru") =>
   req<any>("/api/vizard/clip", { method: "POST", body: JSON.stringify({ video_url: videoUrl, language }) });
 export const getProject    = (id: string)  => req<any>(`/api/vizard/project/${id}`);

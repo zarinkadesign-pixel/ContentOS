@@ -144,3 +144,10 @@ export async function getActiveSession(): Promise<any | null> {
   return kvGet<any>("workspace_active");
 }
 export async function saveActiveSession(session: any | null): Promise<void> { await kvSet("workspace_active", session); }
+
+// ── AI Agency Team Tasks ───────────────────────────────────────────────────────
+export async function getTeamTasks(): Promise<any[]> {
+  const data = await kvGet<any[]>("team_tasks");
+  return data ?? [];
+}
+export async function saveTeamTasks(tasks: any[]): Promise<void> { await kvSet("team_tasks", tasks); }

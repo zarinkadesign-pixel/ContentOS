@@ -3,13 +3,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, Users, Kanban, DollarSign,
-  Video, ChevronRight, Zap, LayoutGrid,
+  Video, ChevronRight, Zap, LayoutGrid, BrainCircuit,
 } from "lucide-react";
 import clsx from "clsx";
 
 const NAV = [
   { href: "/",          label: "Дашборд",  icon: LayoutDashboard },
   { href: "/workspace", label: "Кабинет",  icon: LayoutGrid },
+  { href: "/team",      label: "AI Команда", icon: BrainCircuit },
   { href: "/crm",       label: "CRM",      icon: Kanban },
   { href: "/clients",   label: "Клиенты",  icon: Users },
   { href: "/finance",   label: "Финансы",  icon: DollarSign },
