@@ -1,17 +1,22 @@
 """Producer Center — config"""
 import os
+try:
+    import streamlit as st
+    GEMINI_KEY = st.secrets.get("GEMINI_KEY", os.getenv("GEMINI_KEY", ""))
+    VIZARD_KEY = st.secrets.get("VIZARD_KEY", os.getenv("VIZARD_KEY", ""))
+except Exception:
+    GEMINI_KEY = os.getenv("GEMINI_KEY", "")
+    VIZARD_KEY = os.getenv("VIZARD_KEY", "")
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE_DIR, "data")
 
-GEMINI_KEY = "AIzaSyB37bqKJ7VAJcfV72iQgdqO6QCFPIvDt8U"
 VIZARD_BASE = "https://elb-api.vizard.ai/hvizard-server-front/open-api/v1"
-VIZARD_KEY = ""
 
-KPI_TARGET = 20000
+KPI_TARGET   = 20000
 KPI_BONUS_PCT = 20
 
-# UI Colors
+# UI Colors (для совместимости с core/)
 BG      = "#050710"
 NAV     = "#08091c"
 CARD    = "#0d1126"
