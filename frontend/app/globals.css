@@ -4,6 +4,46 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer components {
+  /* ── Reusable UI primitives ─────────────────────────────────────────────── */
+  .card {
+    @apply bg-card border border-border rounded-xl p-4;
+  }
+
+  .badge {
+    @apply inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium;
+  }
+
+  .input {
+    @apply bg-nav border border-border rounded-lg px-3 py-2 text-sm text-text
+           placeholder-subtext/50 outline-none focus:border-accent transition-colors;
+  }
+
+  .btn-primary {
+    @apply bg-accent hover:bg-accent/80 text-white text-sm font-medium
+           px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-ghost {
+    @apply text-subtext hover:text-text hover:bg-white/5 text-sm
+           px-2 py-1 rounded-lg transition-colors disabled:opacity-50;
+  }
+
+  .btn-danger {
+    @apply text-red-400 hover:text-red-300 hover:bg-red-400/10 text-sm
+           px-2 py-1 rounded-lg transition-colors;
+  }
+
+  /* Toast fade-in animation */
+  @keyframes fade-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .animate-fade-in {
+    animation: fade-in 0.2s ease-out;
+  }
+}
+
 @layer base {
   *, *::before, *::after {
     box-sizing: border-box;
