@@ -9,9 +9,10 @@ import time
 import json
 import os
 import sys
+import signal
 import urllib.request
 import urllib.error
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # Fix Windows console encoding so Russian text doesn't crash the engine
 if sys.stdout and hasattr(sys.stdout, "reconfigure"):
@@ -29,10 +30,36 @@ BASE       = os.path.dirname(os.path.abspath(__file__))
 LOG_FILE   = os.path.join(BASE, "logs", "engine.log")
 STATE_FILE = os.path.join(BASE, "pc_data", "engine_state.json")
 
-GEMINI_KEY = os.environ.get("GEMINI_KEY", "YOUR_GEMINI_KEY")
-BOT_TOKEN  = os.environ.get("BOT_TOKEN",  "YOUR_BOT_TOKEN")
-CHAT_ID    = os.environ.get("CHAT_ID",    "YOUR_CHAT_ID")
-VIZARD_KEY = os.environ.get("VIZARD_KEY", "YOUR_VIZARD_KEY")
+
+# ── Load .env file ────────────────────────────────────────────────────────────
+
+def _load_env() -> None:
+    """Load key=value pairs from .env into os.environ (only if not already set)."""
+    env_path = os.path.join(BASE, ".env")
+    if not os.path.exists(env_path):
+        return
+    try:
+        with open(env_path, encoding="utf-8") as f:
+            for raw in f:
+                line = raw.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                key, _, val = line.partition("=")
+                key = key.strip()
+                val = val.strip().strip('"').strip("'")
+                if key and key not in os.environ:
+                    os.environ[key] = val
+    except Exception as exc:
+        print(f"[engine] .env load error: {exc}")
+
+
+_load_env()
+
+GEMINI_KEY = os.environ.get("GEMINI_KEY", "")
+BOT_TOKEN  = os.environ.get("BOT_TOKEN",  "")
+CHAT_ID    = os.environ.get("CHAT_ID",    "")
+VIZARD_KEY = os.environ.get("VIZARD_KEY", "")
+
 
 # ── Global engine state ───────────────────────────────────────────────────────
 
@@ -59,7 +86,10 @@ ENGINE_STATE: dict = {
     },
 }
 
-_state_lock = threading.Lock()
+_state_lock   = threading.Lock()
+_running_lock = threading.Lock()
+_TASK_RUNNING: dict = {}   # task_name -> bool, prevents concurrent execution
+
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -96,7 +126,28 @@ def save_state() -> None:
         print(f"[save_state] error: {exc}")
 
 
+def _restore_state() -> None:
+    """On startup: restore tasks.last_run from saved state so intervals are respected."""
+    if not os.path.exists(STATE_FILE):
+        return
+    try:
+        with open(STATE_FILE, encoding="utf-8") as f:
+            saved = json.load(f)
+        if saved.get("tasks"):
+            ENGINE_STATE["tasks"].update(saved["tasks"])
+        # Preserve accumulated agent totals across restarts
+        for key, agent in saved.get("agents", {}).items():
+            if key in ENGINE_STATE["agents"]:
+                ENGINE_STATE["agents"][key]["total"] = agent.get("total", 0)
+        log("State restored from previous session", "ENGINE")
+    except Exception as exc:
+        log(f"State restore skipped: {exc}", "INFO")
+
+
 def gemini(prompt: str, system: str = "") -> str:
+    if not GEMINI_KEY:
+        log("GEMINI_KEY not set — skipping AI call", "WARN")
+        return ""
     url = (
         "https://generativelanguage.googleapis.com/v1beta/models/"
         f"gemini-2.0-flash:generateContent?key={GEMINI_KEY}"
@@ -116,6 +167,9 @@ def gemini(prompt: str, system: str = "") -> str:
 
 
 def tg_notify(text: str) -> None:
+    if not BOT_TOKEN or not CHAT_ID:
+        log("BOT_TOKEN/CHAT_ID not set — skipping Telegram notify", "WARN")
+        return
     try:
         body = json.dumps({"chat_id": CHAT_ID, "text": text}).encode()
         req = urllib.request.Request(
@@ -167,6 +221,84 @@ def save_queue(q: list) -> None:
 
 
 # ── Tasks ─────────────────────────────────────────────────────────────────────
+
+def task_hunter() -> None:
+    """Every 30 min — qualify leads pipeline, activate hot leads."""
+    log("Охотник проверяет лидов...", "HUNTER")
+    ENGINE_STATE["agents"]["hunter"]["status"] = "working"
+    save_state()
+
+    leads = load_leads()
+    activated = 0
+    for lead in leads:
+        # Promote scored hot leads from new → active
+        if lead.get("score", 0) >= 80 and lead.get("stage") == "new":
+            lead["stage"] = "active"
+            activated += 1
+            log(f"Охотник активировал горячего лида: {lead.get('name','?')} score={lead.get('score')}", "HUNTER")
+        # Move nurtured leads to done if all 7 days passed
+        if lead.get("stage") == "nurture" and lead.get("nurture_day", 0) >= 7:
+            lead["stage"] = "done_nurture"
+
+    if activated:
+        save_leads(leads)
+        tg_notify(f"🔍 Охотник активировал {activated} горячих лидов для проработки!")
+
+    unscored = sum(1 for l in leads if l.get("score") is None)
+    ENGINE_STATE["agents"]["hunter"]["today"] += 1
+    ENGINE_STATE["agents"]["hunter"]["total"] += 1
+    ENGINE_STATE["agents"]["hunter"]["status"] = "idle"
+    log(f"Охотник завершил: {len(leads)} лидов, {unscored} без оценки, {activated} активировано", "HUNTER")
+    save_state()
+
+
+def task_salesman() -> None:
+    """Every 15 min — generate first contact message for uncontacted scored leads."""
+    leads = load_leads()
+    changed = False
+
+    for lead in leads:
+        # Only process new leads with a score that haven't been contacted yet
+        if lead.get("stage") != "new":
+            continue
+        if lead.get("first_contact_sent"):
+            continue
+        score = lead.get("score", 0)
+        if not score or score < 30:
+            continue
+
+        ENGINE_STATE["agents"]["salesman"]["status"] = "working"
+        save_state()
+
+        msg = gemini(
+            f"Напиши персональное первое сообщение лиду от имени Зарины.\n"
+            f"Имя лида: {lead.get('name','?')}\n"
+            f"Ниша: {lead.get('niche','?')}\n"
+            f"Источник: {lead.get('source','?')}\n"
+            f"Агентство AMAImedia — продюсерский центр для экспертов и предпринимателей.\n"
+            f"Задача: завязать разговор, не продавать. 2-3 живых предложения.",
+            "Ты менеджер по продажам. Первое касание — интересуйся, не продавай.",
+        )
+
+        if msg:
+            lead["first_contact_sent"] = datetime.now().strftime("%Y-%m-%d %H:%M")
+            lead["first_contact_msg"] = msg
+            if score >= 50:
+                lead["stage"] = "nurture"
+            changed = True
+            ENGINE_STATE["agents"]["salesman"]["today"] += 1
+            ENGINE_STATE["agents"]["salesman"]["total"] += 1
+            ENGINE_STATE["stats"]["messages_sent"] += 1
+            log(f"Продажник: первый контакт → {lead.get('name','?')} (score {score})", "SALESMAN")
+
+        ENGINE_STATE["agents"]["salesman"]["status"] = "idle"
+        break  # one contact at a time to avoid spam
+
+    if changed:
+        save_leads(leads)
+    ENGINE_STATE["agents"]["salesman"]["status"] = "idle"
+    save_state()
+
 
 def task_daily_briefing() -> None:
     """09:00 — morning briefing to Zarina."""
@@ -320,7 +452,7 @@ def task_nurture_sequence() -> None:
 
 
 def task_content_publish() -> None:
-    """Every 2 days at 10:00 — publish next queued clip via Vizard."""
+    """Every 2 hours at 10:00 — publish next queued clip via Vizard."""
     queue = load_queue()
     now = datetime.now()
     published = False
@@ -445,13 +577,19 @@ def task_weekly_strategy() -> None:
 
 # (name, function, interval_minutes, required_hour_or_None, required_weekday_or_None)
 SCHEDULE = [
-    ("daily_briefing",   task_daily_briefing,   1440, 9,    None),
-    ("lead_scoring",     task_lead_scoring,     15,   None, None),
-    ("nurture_sequence", task_nurture_sequence, 60,   None, None),
-    ("content_publish",  task_content_publish,  120,  10,   None),
-    ("weekly_report",    task_weekly_report,    10080, 20,  6),
-    ("weekly_strategy",  task_weekly_strategy,  10080, 8,   0),
+    ("daily_briefing",   task_daily_briefing,   1440,  9,    None),
+    ("lead_scoring",     task_lead_scoring,      15,   None, None),
+    ("hunter",           task_hunter,            30,   None, None),
+    ("salesman",         task_salesman,          15,   None, None),
+    ("nurture_sequence", task_nurture_sequence,  60,   None, None),
+    ("content_publish",  task_content_publish,   120,  10,   None),
+    ("weekly_report",    task_weekly_report,    10080,  20,  6),
+    ("weekly_strategy",  task_weekly_strategy,  10080,   8,  0),
 ]
+
+# Initialise running-flag for each task
+for _name, *_ in SCHEDULE:
+    _TASK_RUNNING[_name] = False
 
 
 def _should_run(name: str, interval_min: int, hour, weekday) -> bool:
@@ -476,21 +614,62 @@ def _should_run(name: str, interval_min: int, hour, weekday) -> bool:
     return True
 
 
-def _mark_run(name: str) -> None:
+def _mark_run(name: str, interval_min: int) -> None:
     now = datetime.now()
+    next_dt = now + timedelta(minutes=interval_min)
     ENGINE_STATE["tasks"][name] = {
         "last_run": now.strftime("%Y-%m-%d %H:%M:%S"),
-        "status": "completed",
+        "next_run": next_dt.strftime("%Y-%m-%d %H:%M"),
+        "status": "running",
         "count": ENGINE_STATE["tasks"].get(name, {}).get("count", 0) + 1,
     }
     save_state()
 
 
+def _run_task_safe(name: str, func) -> None:
+    """Wrapper that enforces single-concurrent-execution per task."""
+    with _running_lock:
+        if _TASK_RUNNING.get(name):
+            log(f"Задача {name} уже выполняется — пропускаю", "INFO")
+            return
+        _TASK_RUNNING[name] = True
+    try:
+        func()
+        ENGINE_STATE["tasks"][name]["status"] = "completed"
+        save_state()
+    except Exception as exc:
+        log(f"Task {name} error: {exc}", "ERROR")
+        ENGINE_STATE["tasks"].get(name, {}).update({"status": "error"})
+        save_state()
+    finally:
+        _TASK_RUNNING[name] = False
+
+
+# ── Signal handling ───────────────────────────────────────────────────────────
+
+def _handle_signal(signum, frame) -> None:
+    log("Получен сигнал остановки. Завершаю работу...", "ENGINE")
+    ENGINE_STATE["running"] = False
+    save_state()
+
+
+try:
+    signal.signal(signal.SIGTERM, _handle_signal)
+    signal.signal(signal.SIGINT, _handle_signal)
+except Exception:
+    pass  # signal registration may fail in some environments
+
+
 # ── Main loop ─────────────────────────────────────────────────────────────────
 
 def run_engine() -> None:
+    _restore_state()
+
     ENGINE_STATE["running"] = True
     ENGINE_STATE["started_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    # Reset today counters on fresh start
+    for agent in ENGINE_STATE["agents"].values():
+        agent["today"] = 0
 
     log("ENGINE STARTED — AMAImedia Producer Center v4.0", "ENGINE")
     tg_notify("🚀 AMAImedia Engine v4.0 запущен! Работаю 24/7.")
@@ -501,15 +680,20 @@ def run_engine() -> None:
             for name, func, interval, hour, weekday in SCHEDULE:
                 if _should_run(name, interval, hour, weekday):
                     log(f"Запуск задачи: {name}", "ENGINE")
-                    t = threading.Thread(target=func, daemon=True, name=name)
+                    _mark_run(name, interval)
+                    t = threading.Thread(
+                        target=_run_task_safe, args=(name, func),
+                        daemon=True, name=name,
+                    )
                     t.start()
-                    _mark_run(name)
 
             time.sleep(60)
 
         except Exception as exc:
             log(f"Engine loop error: {exc}", "ERROR")
             time.sleep(60)
+
+    log("ENGINE STOPPED", "ENGINE")
 
 
 if __name__ == "__main__":

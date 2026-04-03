@@ -9,7 +9,20 @@ from datetime import date, datetime, timedelta
 # ═══════════════════════════════════════
 #  CONFIG
 # ═══════════════════════════════════════
-GEMINI_KEY = "YOUR_GEMINI_API_KEY"
+def _load_env_key(key: str, default: str = "") -> str:
+    env_path = os.path.join(BASE, ".env")
+    if os.path.exists(env_path):
+        try:
+            with open(env_path, encoding="utf-8") as _f:
+                for _line in _f:
+                    _line = _line.strip()
+                    if _line.startswith(key + "="):
+                        return _line.split("=", 1)[1].strip().strip('"').strip("'")
+        except Exception:
+            pass
+    return os.environ.get(key, default)
+
+GEMINI_KEY = _load_env_key("GEMINI_KEY", "")
 KPI_TARGET = 20000
 
 # Папка для данных рядом с этим файлом
@@ -1396,6 +1409,8 @@ class MonitorScreen(ctk.CTkFrame):
         schedule_info = [
             ("daily_briefing",   "☀️ Брифинг дня",          "09:00 ежедневно"),
             ("lead_scoring",     "📊 Скоринг лидов",         "каждые 15 мин"),
+            ("hunter",           "🔍 Охотник",               "каждые 30 мин"),
+            ("salesman",         "💬 Продажник",             "каждые 15 мин"),
             ("nurture_sequence", "🌱 Прогрев цепочка",       "каждый час"),
             ("content_publish",  "📤 Публикация контента",   "каждые 2ч в 10:00"),
             ("weekly_report",    "📈 Недельный отчёт",       "вс 20:00"),
@@ -1403,14 +1418,18 @@ class MonitorScreen(ctk.CTkFrame):
         ]
         tasks = state.get("tasks", {})
         for key, name, when in schedule_info:
-            last = tasks.get(key, {}).get("last_run", "—")
-            if last and last != "—":
-                last = last[11:16]
+            task_state = tasks.get(key, {})
+            last = task_state.get("last_run", "")
+            nxt  = task_state.get("next_run", "")
+            last_fmt = last[11:16] if last else "—"
+            nxt_fmt  = nxt[11:16]  if nxt  else "—"
+            status   = task_state.get("status", "")
+            dot = "🟡" if status == "running" else ("🟢" if last else "⚪")
             r = ctk.CTkFrame(self._schedule_frame, fg_color=CARD2, corner_radius=7)
             r.pack(fill="x", pady=2)
-            ctk.CTkLabel(r, text=name, font=("Inter", 10, "bold"),
+            ctk.CTkLabel(r, text=f"{dot} {name}", font=("Inter", 10, "bold"),
                          text_color=TEXT).pack(anchor="w", padx=8, pady=(4, 0))
-            ctk.CTkLabel(r, text=f"⏰ {when}  |  последний: {last}",
+            ctk.CTkLabel(r, text=f"⏰ {when}  ·  след: {nxt_fmt}  ·  был: {last_fmt}",
                          font=("Inter", 9), text_color=TEXT2).pack(anchor="w", padx=8, pady=(0, 4))
 
         # Stats
