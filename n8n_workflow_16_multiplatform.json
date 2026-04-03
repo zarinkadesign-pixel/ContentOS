@@ -1,0 +1,139 @@
+{
+  "name": "16 — Multiplatform Publisher",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "publish-content",
+        "options": {}
+      },
+      "id": "webhook-pub-001",
+      "name": "Webhook — публикация",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "publish-content-001"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.platforms }}",
+              "operation": "contains",
+              "value2": "telegram"
+            }
+          ]
+        }
+      },
+      "id": "if-telegram",
+      "name": "Если Telegram",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [480, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.platforms }}",
+              "operation": "contains",
+              "value2": "vk"
+            }
+          ]
+        }
+      },
+      "id": "if-vk",
+      "name": "Если VK",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [480, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/botYOUR_BOT_TOKEN/sendMessage",
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"chat_id\": \"YOUR_CHAT_ID\",\n  \"text\": \"{{ $('Webhook — публикация').item.json.title }}\\n\\n{{ $('Webhook — публикация').item.json.caption }}\",\n  \"parse_mode\": \"HTML\"\n}"
+      },
+      "id": "tg-publish",
+      "name": "Telegram — отправить",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [720, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=YOUR_GEMINI_KEY",
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"contents\": [{\n    \"role\": \"user\",\n    \"parts\": [{\n      \"text\": \"Адаптируй этот пост для ВКонтакте. Сохрани смысл, но сделай стиль более живым для VK.\\n\\nОригинал:\\n{{ $('Webhook — публикация').item.json.caption }}\"\n    }]\n  }],\n  \"generationConfig\": {\"maxOutputTokens\": 500}\n}"
+      },
+      "id": "ai-adapt-vk",
+      "name": "AI — адаптация для VK",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [720, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=YOUR_GEMINI_KEY",
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"contents\": [{\n    \"role\": \"user\",\n    \"parts\": [{\n      \"text\": \"Напиши уведомление Зарине о том что контент опубликован:\\nНазвание: {{ $('Webhook — публикация').item.json.title }}\\nПлатформы: {{ $('Webhook — публикация').item.json.platforms }}\\nКратко (2 строки).\"\n    }]\n  }],\n  \"generationConfig\": {\"maxOutputTokens\": 200}\n}"
+      },
+      "id": "ai-report",
+      "name": "AI — отчёт о публикации",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [960, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/botYOUR_BOT_TOKEN/sendMessage",
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"chat_id\": \"YOUR_CHAT_ID\",\n  \"text\": \"✅ Публикация завершена!\\n{{ $json.candidates[0].content.parts[0].text }}\"\n}"
+      },
+      "id": "tg-notify-done",
+      "name": "Telegram — уведомить Зарину",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1200, 300]
+    }
+  ],
+  "connections": {
+    "Webhook — публикация": {
+      "main": [[
+        {"node": "Если Telegram", "type": "main", "index": 0},
+        {"node": "Если VK", "type": "main", "index": 0}
+      ]]
+    },
+    "Если Telegram": {
+      "main": [[{"node": "Telegram — отправить", "type": "main", "index": 0}]]
+    },
+    "Если VK": {
+      "main": [[{"node": "AI — адаптация для VK", "type": "main", "index": 0}]]
+    },
+    "Telegram — отправить": {
+      "main": [[{"node": "AI — отчёт о публикации", "type": "main", "index": 0}]]
+    },
+    "AI — адаптация для VK": {
+      "main": [[{"node": "AI — отчёт о публикации", "type": "main", "index": 0}]]
+    },
+    "AI — отчёт о публикации": {
+      "main": [[{"node": "Telegram — уведомить Зарину", "type": "main", "index": 0}]]
+    }
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "meta": {
+    "description": "Workflow 16 — Publishes content to multiple platforms (Telegram, VK) via webhook from engine.py. Adapts text for each platform using Gemini AI.",
+    "version": "1.0"
+  }
+}

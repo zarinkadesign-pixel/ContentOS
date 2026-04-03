@@ -345,36 +345,56 @@ def task_lead_scoring() -> None:
         save_state()
 
         score_resp = gemini(
-            f"Оцени лида 0-100 по критериям:\n"
+            f"Ты эксперт по квалификации лидов для SMM агентства AMAImedia.\n"
+            f"Оцени лида от 0 до 100. Ответь ТОЛЬКО в этом формате:\n"
+            f"SCORE: [число]\n"
+            f"ПРИЧИНА: [одно предложение почему такой балл]\n"
+            f"ПРОДУКТ: [аудит/мини-курс/наставничество/продюсирование]\n\n"
+            f"Данные лида:\n"
             f"Имя: {lead.get('name','?')}\n"
             f"Ниша: {lead.get('niche','?')}\n"
             f"Источник: {lead.get('source','?')}\n"
             f"Заметки: {lead.get('notes','—')}\n\n"
-            f"Критерии: бюджет(30) + боль совпадает(25) + срочность(20) "
-            f"+ открытость(15) + отвечает быстро(10)\n"
-            f"Ответь ТОЛЬКО числом от 0 до 100."
+            f"Критерии:\n"
+            f"+30 если есть бюджет или уже платит за что-то\n"
+            f"+25 если боль совпадает с нашими продуктами\n"
+            f"+20 если хочет действовать быстро\n"
+            f"+15 если открыт к новому\n"
+            f"+10 если активно общается"
         )
 
-        try:
-            digits = "".join(c for c in score_resp[:6] if c.isdigit())
-            score = max(0, min(100, int(digits))) if digits else 50
-        except Exception:
-            score = 50
+        score = 50
+        reason = ""
+        product = "наставничество"
+        for line in score_resp.split("\n"):
+            if "SCORE:" in line:
+                try:
+                    score = max(0, min(100, int("".join(c for c in line.split(":")[-1][:5] if c.isdigit()))))
+                except Exception:
+                    pass
+            elif "ПРИЧИНА:" in line:
+                reason = line.split(":", 1)[-1].strip()
+            elif "ПРОДУКТ:" in line:
+                product = line.split(":", 1)[-1].strip()
 
         lead["score"] = score
+        lead["score_reason"] = reason
+        lead["recommended_product"] = product
         updated = True
         ENGINE_STATE["agents"]["scorer"]["today"] += 1
         ENGINE_STATE["agents"]["scorer"]["total"] += 1
         ENGINE_STATE["stats"]["leads_today"] += 1
-        log(f"Скоринг: {lead.get('name','?')} = {score}", "SCORER")
+        log(f"Скоринг: {lead.get('name','?')} = {score} → {product}", "SCORER")
 
         if score >= 80:
             tg_notify(
                 f"🔥 ГОРЯЧИЙ ЛИД! Score: {score}\n"
                 f"Имя: {lead.get('name','?')}\n"
                 f"Ниша: {lead.get('niche','?')}\n"
-                f"Контакт: {lead.get('contact','?')}\n\n"
-                f"Рекомендую: позвони сегодня!"
+                f"Контакт: {lead.get('contact','?')}\n"
+                f"Рекомендую: {product}\n"
+                f"Почему: {reason}\n\n"
+                f"Позвони сегодня!"
             )
             log(f"Горячий лид → уведомление: {lead.get('name','?')}", "HOT")
 
@@ -573,18 +593,116 @@ def task_weekly_strategy() -> None:
     save_state()
 
 
+def enrich_lead(lead: dict) -> dict:
+    """Enrich a single lead with AI-inferred data about their niche and approach."""
+    name    = lead.get("name", "")
+    niche   = lead.get("niche", "")
+    contact = lead.get("contact", "")
+    if not any([name, niche, contact]):
+        return lead
+    enriched = gemini(
+        f"Помоги обогатить данные о потенциальном клиенте AMAImedia.\n"
+        f"Имя: {name}, Ниша: {niche}, Контакт: {contact}\n\n"
+        f"Предположи на основе ниши:\n"
+        f"1. Средний чек продукта в этой нише ($)\n"
+        f"2. Главная боль экспертов в этой нише\n"
+        f"3. Какой продукт AMAImedia подходит (аудит/мини-курс/наставничество/продюсирование)\n"
+        f"4. Лучший способ начать первый разговор\n"
+        f"Ответь кратко, по пунктам."
+    )
+    if enriched:
+        lead["enrichment"] = enriched
+        lead["enriched_at"] = datetime.now().strftime("%Y-%m-%d %H:%M")
+    return lead
+
+
+def task_enrich_leads() -> None:
+    """Every 4 hours — enrich leads that have no enrichment data yet."""
+    leads = load_leads()
+    changed = False
+    count = 0
+    for lead in leads:
+        if lead.get("enrichment"):
+            continue
+        if not (lead.get("niche") or lead.get("name")):
+            continue
+        lead = enrich_lead(lead)
+        if lead.get("enrichment"):
+            changed = True
+            count += 1
+            log(f"Обогащён лид: {lead.get('name','?')}", "HUNTER")
+        if count >= 5:
+            break  # max 5 per run to respect Gemini quota
+    if changed:
+        save_leads(leads)
+    log(f"Обогащение завершено: {count} лидов обработано", "HUNTER")
+
+
+def task_multiplatform_publish() -> None:
+    """Every 2 hours at 10:00 — publish via n8n to all configured platforms."""
+    queue = load_queue()
+    now = datetime.now()
+
+    for item in queue:
+        if item.get("status") != "scheduled":
+            continue
+        try:
+            sched = datetime.strptime(item["scheduled_date"], "%Y-%m-%d")
+        except Exception:
+            continue
+        if sched.date() > now.date():
+            continue
+
+        ENGINE_STATE["agents"]["publisher"]["status"] = "working"
+        save_state()
+
+        try:
+            data = json.dumps({
+                "clip_url":  item.get("video_url", ""),
+                "caption":   item.get("caption", ""),
+                "hashtags":  item.get("hashtags", []),
+                "platforms": item.get("platforms", ["telegram"]),
+                "title":     item.get("title", ""),
+            }).encode()
+            req = urllib.request.Request(
+                "http://localhost:5678/webhook/publish-content",
+                data, {"Content-Type": "application/json"},
+            )
+            urllib.request.urlopen(req, timeout=15)
+
+            item["status"] = "published"
+            item["published_at"] = now.strftime("%Y-%m-%d %H:%M")
+            ENGINE_STATE["agents"]["publisher"]["today"] += 1
+            ENGINE_STATE["agents"]["publisher"]["total"] += 1
+            ENGINE_STATE["stats"]["content_published"] += 1
+            platforms = ", ".join(item.get("platforms", ["?"]))
+            log(f"Мультиплатформа: {item.get('title','?')[:40]} → {platforms}", "PUBLISHER")
+            tg_notify(f"📤 Опубликовано!\n{item.get('title','?')}\nПлатформы: {platforms}")
+        except Exception as exc:
+            item["status"] = "error"
+            item["error"] = str(exc)
+            log(f"Ошибка мультиплатформенной публикации: {exc}", "ERROR")
+
+        ENGINE_STATE["agents"]["publisher"]["status"] = "idle"
+        save_queue(queue)
+        save_state()
+        break  # one at a time
+
+
 # ── Scheduler ─────────────────────────────────────────────────────────────────
 
 # (name, function, interval_minutes, required_hour_or_None, required_weekday_or_None)
 SCHEDULE = [
-    ("daily_briefing",   task_daily_briefing,   1440,  9,    None),
-    ("lead_scoring",     task_lead_scoring,      15,   None, None),
-    ("hunter",           task_hunter,            30,   None, None),
-    ("salesman",         task_salesman,          15,   None, None),
-    ("nurture_sequence", task_nurture_sequence,  60,   None, None),
-    ("content_publish",  task_content_publish,   120,  10,   None),
-    ("weekly_report",    task_weekly_report,    10080,  20,  6),
-    ("weekly_strategy",  task_weekly_strategy,  10080,   8,  0),
+    ("daily_briefing",       task_daily_briefing,       1440,  9,    None),
+    ("lead_scoring",         task_lead_scoring,           15,  None, None),
+    ("hunter",               task_hunter,                 30,  None, None),
+    ("salesman",             task_salesman,               15,  None, None),
+    ("nurture_sequence",     task_nurture_sequence,       60,  None, None),
+    ("enrich_leads",         task_enrich_leads,          240,  None, None),
+    ("content_publish",      task_content_publish,       120,  10,   None),
+    ("multiplatform_publish",task_multiplatform_publish, 120,  10,   None),
+    ("weekly_report",        task_weekly_report,        10080,  20,  6),
+    ("weekly_strategy",      task_weekly_strategy,      10080,   8,  0),
 ]
 
 # Initialise running-flag for each task

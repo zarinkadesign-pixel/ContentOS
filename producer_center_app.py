@@ -1264,6 +1264,25 @@ class MonitorScreen(ctk.CTkFrame):
             corner_radius=8, command=self._restart_engine
         ).pack(side="left", padx=4)
 
+        # Quick Actions bar
+        qa = ctk.CTkFrame(self, fg_color=CARD2, corner_radius=0, height=40)
+        qa.pack(fill="x")
+        qa.pack_propagate(False)
+        ctk.CTkLabel(qa, text="Быстрые действия:",
+                     font=("Inter", 10), text_color=TEXT2).pack(side="left", padx=12, pady=8)
+        ctk.CTkButton(qa, text="🎙 Транскрибировать", width=130,
+                      fg_color=ACCENT, text_color="#fff", font=("Inter", 10),
+                      corner_radius=6, height=26, command=self._btn_transcribe
+                      ).pack(side="left", padx=4, pady=7)
+        ctk.CTkButton(qa, text="🔍 Обогатить лидов", width=130,
+                      fg_color=CARD, text_color=TEXT2, font=("Inter", 10),
+                      corner_radius=6, height=26, command=self._btn_enrich
+                      ).pack(side="left", padx=4, pady=7)
+        ctk.CTkButton(qa, text="📋 Открыть логи", width=110,
+                      fg_color=CARD, text_color=TEXT2, font=("Inter", 10),
+                      corner_radius=6, height=26, command=self._btn_show_logs
+                      ).pack(side="left", padx=4, pady=7)
+
         # Main 3-column grid
         main = ctk.CTkFrame(self, fg_color="transparent")
         main.pack(fill="both", expand=True, padx=12, pady=8)
@@ -1337,6 +1356,64 @@ class MonitorScreen(ctk.CTkFrame):
     def _restart_engine(self):
         self._stop_engine()
         self.after(2000, self._start_engine)
+
+    def _btn_transcribe(self):
+        import tkinter.filedialog as fd
+        import subprocess
+        path = fd.askopenfilename(
+            title="Выбери аудио или видео файл",
+            filetypes=[("Audio/Video", "*.mp3 *.mp4 *.wav *.m4a *.ogg *.webm"), ("All", "*.*")]
+        )
+        if not path:
+            return
+        py = os.path.join(BASE, "python_embedded", "python.exe")
+        if not os.path.exists(py):
+            py = "python"
+        script = os.path.join(BASE, "transcribe.py")
+        flags = getattr(subprocess, "CREATE_NEW_CONSOLE", 0)
+        subprocess.Popen([py, script, path], creationflags=flags)
+
+    def _btn_enrich(self):
+        import threading
+        import sys
+        sys.path.insert(0, BASE)
+        def _run():
+            try:
+                from engine import enrich_lead, load_leads, save_leads
+                leads = load_leads()
+                count = 0
+                for lead in leads:
+                    if lead.get("enrichment") or not (lead.get("niche") or lead.get("name")):
+                        continue
+                    enrich_lead(lead)
+                    count += 1
+                    if count >= 5:
+                        break
+                save_leads(leads)
+            except Exception as exc:
+                print(f"[enrich] {exc}")
+        threading.Thread(target=_run, daemon=True).start()
+
+    def _btn_show_logs(self):
+        log_path = os.path.join(BASE, "logs", "engine.log")
+        win = ctk.CTkToplevel(self)
+        win.title("Engine Log")
+        win.geometry("900x500")
+        win.configure(fg_color=BG)
+        txt = ctk.CTkTextbox(win, fg_color=CARD2, text_color=TEXT2,
+                              font=("Courier", 10), corner_radius=8)
+        txt.pack(fill="both", expand=True, padx=8, pady=8)
+        if os.path.exists(log_path):
+            try:
+                with open(log_path, encoding="utf-8", errors="replace") as f:
+                    lines = f.readlines()
+                txt.insert("end", "".join(lines[-200:]))  # last 200 lines
+                txt.see("end")
+            except Exception as exc:
+                txt.insert("end", f"Ошибка чтения лога: {exc}")
+        else:
+            txt.insert("end", "Лог-файл не найден. Запустите engine.py сначала.")
+        txt.configure(state="disabled")
 
     # ── refresh ───────────────────────────────────────────────────────────────
 
