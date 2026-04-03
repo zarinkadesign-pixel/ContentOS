@@ -1,0 +1,142 @@
+{
+  "name": "15 — AI Voice Qualifier (новые лиды с рекламы)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "new-lead",
+        "responseMode": "responseNode"
+      },
+      "id": "webhook-new-lead",
+      "name": "Webhook: New lead from Meta Ads",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const { name, niche, contact, source } = $input.first().json;\nreturn [{ json: { name: name || 'Новый лид', niche: niche || '—', contact: contact || '', source: source || 'ads', received_at: new Date().toISOString() } }];"
+      },
+      "id": "extract-lead-data",
+      "name": "Extract lead data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=YOUR_GEMINI_KEY",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "Content-Type", "value": "application/json" }]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "contents",
+              "value": "=[{\"parts\":[{\"text\":\"Ты AI квалификатор AMAImedia. Новый лид из рекламы.\\n\\nЛид: \" + $json.name + \"\\nНиша: \" + $json.niche + \"\\n\\nСоставь:\\n1. Приветственное голосовое сообщение (2-3 предложения)\\n2. Квалифицирующий вопрос 1: о текущей ситуации\\n3. Квалифицирующий вопрос 2: о желаемом результате\\n4. Квалифицирующий вопрос 3: о готовности инвестировать\\n\\nТон: дружелюбный, профессиональный, без давления.\\nРусский язык.\"}]}]"
+            }
+          ]
+        }
+      },
+      "id": "gemini-qualify",
+      "name": "Gemini: Generate qualifying questions",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const geminiResp = $input.first().json;\nconst text = geminiResp.candidates?.[0]?.content?.parts?.[0]?.text || 'Ошибка';\nconst lead = $('Extract lead data').first().json;\n\n// Simple scoring: if niche mentioned, score up\nlet score = 50;\nif (lead.niche && lead.niche !== '—') score += 15;\nif (lead.source === 'ads') score += 10;\n\nreturn [{ json: { qualify_script: text, lead_name: lead.name, lead_contact: lead.contact, lead_niche: lead.niche, initial_score: score } }];"
+      },
+      "id": "score-initial",
+      "name": "Initial scoring",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/botYOUR_BOT_TOKEN/sendMessage",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "chat_id", "value": "YOUR_CHAT_ID" },
+            { "name": "text", "value": "=🎯 <b>Новый лид с рекламы!</b>\n\n👤 {{ $json.lead_name }}\n📌 Ниша: {{ $json.lead_niche }}\n📱 Контакт: {{ $json.lead_contact }}\n⚡ Начальный score: {{ $json.initial_score }}/100\n\n<b>Скрипт квалификации:</b>\n{{ $json.qualify_script.substring(0, 1500) }}" },
+            { "name": "parse_mode", "value": "HTML" }
+          ]
+        }
+      },
+      "id": "tg-notify-lead",
+      "name": "Telegram: Notify Zarina (new lead)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1120, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [{ "value1": "={{ $json.initial_score }}", "operation": "largerEqual", "value2": 75 }]
+        }
+      },
+      "id": "check-hot",
+      "name": "Score >= 75?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1120, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/botYOUR_BOT_TOKEN/sendMessage",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "chat_id", "value": "YOUR_CHAT_ID" },
+            { "name": "text", "value": "=🔥 <b>ГОРЯЧИЙ ЛИД!</b> Score {{ $json.initial_score }}/100\n\n{{ $json.lead_name }} ({{ $json.lead_niche }})\n\n📞 Рекомендую записать на созвон немедленно!\nКонтакт: {{ $json.lead_contact }}" },
+            { "name": "parse_mode", "value": "HTML" }
+          ]
+        }
+      },
+      "id": "tg-hot-alert",
+      "name": "Telegram: Hot lead alert!",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"ok\": true, \"score\": $json.initial_score, \"lead\": $json.lead_name }"
+      },
+      "id": "respond-webhook",
+      "name": "Respond to webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1340, 500]
+    }
+  ],
+  "connections": {
+    "Webhook: New lead from Meta Ads": { "main": [[{ "node": "Extract lead data", "type": "main", "index": 0 }]] },
+    "Extract lead data": { "main": [[{ "node": "Gemini: Generate qualifying questions", "type": "main", "index": 0 }]] },
+    "Gemini: Generate qualifying questions": { "main": [[{ "node": "Initial scoring", "type": "main", "index": 0 }]] },
+    "Initial scoring": {
+      "main": [
+        [{ "node": "Telegram: Notify Zarina (new lead)", "type": "main", "index": 0 }],
+        [{ "node": "Score >= 75?", "type": "main", "index": 0 }]
+      ]
+    },
+    "Score >= 75?": {
+      "main": [
+        [{ "node": "Telegram: Hot lead alert!", "type": "main", "index": 0 }],
+        [{ "node": "Respond to webhook", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "staticData": null,
+  "tags": ["v3.0", "qualification", "ads"]
+}

@@ -1,0 +1,87 @@
+{
+  "name": "14 — Возврат холодных лидов",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "cronExpression", "expression": "0 14 * * *" }] }
+      },
+      "id": "cron-daily-return",
+      "name": "Cron: Daily 14:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Find leads with no activity for 30+ days\n// In production: load from pc_data/leads.json via local API\nconst thirtyDaysAgo = new Date();\nthirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);\n\n// Simulate cold leads\nconst coldLeads = [\n  { id: 5, name: 'Андрей Козлов', niche: 'Фитнес', contact: '@andrey_fit', last_contact: '2026-02-15', score: 42 },\n  { id: 8, name: 'Елена Смирнова', niche: 'Кулинария', contact: '@elena_cook', last_contact: '2026-02-20', score: 38 },\n];\n\nreturn coldLeads.map(l => ({ json: l }));"
+      },
+      "id": "find-cold-leads",
+      "name": "Find cold leads (30+ days)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=YOUR_GEMINI_KEY",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "Content-Type", "value": "application/json" }]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "contents",
+              "value": "=[{\"parts\":[{\"text\":\"Напиши 'возвратное' сообщение для холодного лида.\\n\\nЛид: \" + $json.name + \"\\nНиша: \" + $json.niche + \"\\nПоследний контакт: \" + $json.last_contact + \"\\n\\nТребования:\\n- Не упоминай что давно не писали (не нужен guilty tone)\\n- Предложи что-то новое (кейс / инсайт / оффер)\\n- 3-4 предложения\\n- Закончи вопросом\\nРусский язык. По-человечески.\"}]}]"
+            }
+          ]
+        }
+      },
+      "id": "gemini-return-msg",
+      "name": "Gemini: Return message",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const geminiResp = $input.first().json;\nconst text = geminiResp.candidates?.[0]?.content?.parts?.[0]?.text || 'Ошибка';\nconst lead = $('Find cold leads (30+ days)').first().json;\nreturn [{ json: { message: text, lead_name: lead.name, lead_contact: lead.contact } }];"
+      },
+      "id": "parse-return-msg",
+      "name": "Parse return message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/botYOUR_BOT_TOKEN/sendMessage",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "chat_id", "value": "YOUR_CHAT_ID" },
+            { "name": "text", "value": "=♻️ <b>Возврат холодного лида</b>\n\nЛид: {{ $json.lead_name }} ({{ $json.lead_contact }})\n\nСообщение для отправки:\n\n{{ $json.message }}\n\n👆 Отправьте это сообщение лиду в Telegram" },
+            { "name": "parse_mode", "value": "HTML" }
+          ]
+        }
+      },
+      "id": "tg-notify-return",
+      "name": "Telegram: Send return message to Zarina",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1120, 300]
+    }
+  ],
+  "connections": {
+    "Cron: Daily 14:00": { "main": [[{ "node": "Find cold leads (30+ days)", "type": "main", "index": 0 }]] },
+    "Find cold leads (30+ days)": { "main": [[{ "node": "Gemini: Return message", "type": "main", "index": 0 }]] },
+    "Gemini: Return message": { "main": [[{ "node": "Parse return message", "type": "main", "index": 0 }]] },
+    "Parse return message": { "main": [[{ "node": "Telegram: Send return message to Zarina", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "staticData": null,
+  "tags": ["v3.0", "reactivation"]
+}

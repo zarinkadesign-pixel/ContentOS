@@ -1,0 +1,87 @@
+{
+  "name": "13 — Рекламные тесты (еженедельно)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "cronExpression", "expression": "0 8 * * 1" }] }
+      },
+      "id": "cron-weekly-ads",
+      "name": "Cron: Monday 08:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Simulate loading last week's ad performance\nconst offers = [\n  { offer: 'Аудит Instagram $150', niche: 'Блогеры и эксперты' },\n  { offer: 'Наставничество $1,500', niche: 'Онлайн-школы' },\n  { offer: 'Продюсирование $3,000', niche: 'Эксперты в нише' },\n];\nreturn offers.map(o => ({ json: o }));"
+      },
+      "id": "load-offers",
+      "name": "Load current offers",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=YOUR_GEMINI_KEY",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "Content-Type", "value": "application/json" }]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "contents",
+              "value": "=[{\"parts\":[{\"text\":\"Создай 9 рекламных текстов (3 группы × 3 варианта) для AMAImedia.\\n\\nОффер: \" + $json.offer + \"\\nЦА: \" + $json.niche + \"\\n\\nГруппа A — Боль → Решение (3 варианта)\\nГруппа B — Кейс → Результат (3 варианта)\\nГруппа C — Вопрос → Оффер (3 варианта)\\n\\nДля каждого: текст (5-7 строк) + CTA\\nФорматы: картинка/видео/карусель\\nРусский язык. Без воды.\"}]}]"
+            }
+          ]
+        }
+      },
+      "id": "gemini-ads",
+      "name": "Gemini: Generate 9 ad variants",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const geminiResp = $input.first().json;\nconst text = geminiResp.candidates?.[0]?.content?.parts?.[0]?.text || 'Ошибка';\nconst offer = $('Load current offers').first().json.offer;\nreturn [{ json: { ads: text, offer, generated_at: new Date().toISOString() } }];"
+      },
+      "id": "parse-ads",
+      "name": "Parse ad texts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/botYOUR_BOT_TOKEN/sendMessage",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "chat_id", "value": "YOUR_CHAT_ID" },
+            { "name": "text", "value": "=📢 <b>Новые рекламные тексты готовы!</b>\n\nОффер: {{ $json.offer }}\n\n{{ $json.ads.substring(0, 2500) }}\n\n📁 Сохранено в /ads/" },
+            { "name": "parse_mode", "value": "HTML" }
+          ]
+        }
+      },
+      "id": "tg-notify-ads",
+      "name": "Telegram: Send ad pack to Zarina",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1120, 300]
+    }
+  ],
+  "connections": {
+    "Cron: Monday 08:00": { "main": [[{ "node": "Load current offers", "type": "main", "index": 0 }]] },
+    "Load current offers": { "main": [[{ "node": "Gemini: Generate 9 ad variants", "type": "main", "index": 0 }]] },
+    "Gemini: Generate 9 ad variants": { "main": [[{ "node": "Parse ad texts", "type": "main", "index": 0 }]] },
+    "Parse ad texts": { "main": [[{ "node": "Telegram: Send ad pack to Zarina", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "staticData": null,
+  "tags": ["v3.0", "advertising"]
+}

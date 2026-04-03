@@ -1,0 +1,101 @@
+{
+  "name": "11 — Онбординг клиента",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "onboard",
+        "responseMode": "responseNode"
+      },
+      "id": "webhook-onboard",
+      "name": "Webhook /onboard",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const { client_id, name, niche, contact } = $input.first().json;\nreturn [{ json: { client_id, name, niche, contact, started_at: new Date().toISOString() } }];"
+      },
+      "id": "extract-client",
+      "name": "Extract client data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=YOUR_GEMINI_KEY",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "Content-Type", "value": "application/json" }]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "contents",
+              "value": "=[{\"parts\":[{\"text\":\"Создай анкету онбординга для клиента AMAImedia.\\nКлиент: \" + $json.name + \"\\nНиша: \" + $json.niche + \"\\n\\nСгенерируй 10 вопросов для сбора:\\n- Голос бренда\\n- ЦА\\n- Боли\\n- УТП\\n- Продукты\\n- Цели на 90 дней\\nРусский язык.\"}]}]"
+            }
+          ]
+        }
+      },
+      "id": "gemini-questionnaire",
+      "name": "Gemini: Generate questionnaire",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const geminiResp = $input.first().json;\nconst text = geminiResp.candidates?.[0]?.content?.parts?.[0]?.text || 'Ошибка генерации';\nreturn [{ json: { questionnaire: text, client_name: $('Extract client data').first().json.name, client_id: $('Extract client data').first().json.client_id } }];"
+      },
+      "id": "parse-questionnaire",
+      "name": "Parse questionnaire",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/botYOUR_BOT_TOKEN/sendMessage",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "chat_id", "value": "YOUR_CHAT_ID" },
+            { "name": "text", "value": "=📋 <b>Онбординг запущен</b> для {{ $json.client_name }}\n\nАнкета готова и отправлена клиенту.\n\nСледующий шаг: заполнить базу знаний (RAG) по ответам." },
+            { "name": "parse_mode", "value": "HTML" }
+          ]
+        }
+      },
+      "id": "tg-notify-onboard",
+      "name": "Telegram: Notify Zarina",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"ok\": true, \"questionnaire\": $json.questionnaire }"
+      },
+      "id": "respond-ok",
+      "name": "Respond OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1340, 300]
+    }
+  ],
+  "connections": {
+    "Webhook /onboard": { "main": [[{ "node": "Extract client data", "type": "main", "index": 0 }]] },
+    "Extract client data": { "main": [[{ "node": "Gemini: Generate questionnaire", "type": "main", "index": 0 }]] },
+    "Gemini: Generate questionnaire": { "main": [[{ "node": "Parse questionnaire", "type": "main", "index": 0 }]] },
+    "Parse questionnaire": { "main": [[{ "node": "Telegram: Notify Zarina", "type": "main", "index": 0 }]] },
+    "Telegram: Notify Zarina": { "main": [[{ "node": "Respond OK", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "staticData": null,
+  "tags": ["v3.0", "onboarding"]
+}

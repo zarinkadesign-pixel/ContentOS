@@ -1,0 +1,87 @@
+{
+  "name": "12 — Ежемесячный отчёт клиентам",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "cronExpression", "expression": "0 9 1 * *" }] }
+      },
+      "id": "cron-monthly",
+      "name": "Cron: 1st of month 09:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Load clients from pc_data/clients.json via file read simulation\n// In production, replace with actual data source (HTTP request to local API)\nconst mockClients = [\n  { id: 1, name: 'Пример клиента', niche: 'Психология', stage: 3, income: 1500 },\n];\nreturn mockClients.map(c => ({ json: c }));"
+      },
+      "id": "load-clients",
+      "name": "Load active clients",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=YOUR_GEMINI_KEY",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "Content-Type", "value": "application/json" }]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "contents",
+              "value": "=[{\"parts\":[{\"text\":\"Создай ежемесячный отчёт для клиента AMAImedia.\\nКлиент: \" + $json.name + \"\\nНиша: \" + $json.niche + \"\\nЭтап: \" + ($json.stage+1) + \"/9\\nДоход клиента: $\" + $json.income + \"\\n\\n## Результаты месяца\\n[охваты / лиды / конверсия / доход]\\n\\n## Что было сделано\\n[топ-5 задач]\\n\\n## Что работает лучше всего\\n\\n## AI анализ\\n\\n## План на следующий месяц\\n[3 приоритета]\\n\\nРусский язык. Конкретно с цифрами.\"}]}]"
+            }
+          ]
+        }
+      },
+      "id": "gemini-report",
+      "name": "Gemini: Generate monthly report",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const geminiResp = $input.first().json;\nconst text = geminiResp.candidates?.[0]?.content?.parts?.[0]?.text || 'Ошибка генерации';\nreturn [{ json: { report: text, client_name: $('Load active clients').first().json.name } }];"
+      },
+      "id": "parse-report",
+      "name": "Parse report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/botYOUR_BOT_TOKEN/sendMessage",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "chat_id", "value": "YOUR_CHAT_ID" },
+            { "name": "text", "value": "=📈 <b>Ежемесячный отчёт</b> — {{ $json.client_name }}\n\n{{ $json.report.substring(0, 3000) }}" },
+            { "name": "parse_mode", "value": "HTML" }
+          ]
+        }
+      },
+      "id": "tg-send-report",
+      "name": "Telegram: Send report",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1120, 300]
+    }
+  ],
+  "connections": {
+    "Cron: 1st of month 09:00": { "main": [[{ "node": "Load active clients", "type": "main", "index": 0 }]] },
+    "Load active clients": { "main": [[{ "node": "Gemini: Generate monthly report", "type": "main", "index": 0 }]] },
+    "Gemini: Generate monthly report": { "main": [[{ "node": "Parse report", "type": "main", "index": 0 }]] },
+    "Parse report": { "main": [[{ "node": "Telegram: Send report", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "staticData": null,
+  "tags": ["v3.0", "reporting"]
+}
