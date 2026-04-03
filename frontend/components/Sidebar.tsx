@@ -6,7 +6,7 @@ import {
   LayoutDashboard, Users, Kanban, DollarSign,
   Video, ChevronRight, Zap, LayoutGrid, BrainCircuit, Clapperboard, Globe, Bot,
   LogOut, Loader2, UserCog, TrendingUp, Search, Package, GitBranch,
-  ChevronDown, Sparkles, Calendar, Mail,
+  ChevronDown, Sparkles, Calendar, Mail, Activity,
 } from "lucide-react";
 import clsx from "clsx";
 
@@ -68,10 +68,11 @@ const ADMIN_SECTIONS: NavSection[] = [
   {
     title: "Управление",
     items: [
-      { href: "/automation", label: "Автопилот",  icon: Bot          },
-      { href: "/team",       label: "AI Команда", icon: BrainCircuit },
-      { href: "/hub",        label: "Хаб",        icon: Globe        },
-      { href: "/users",      label: "Подписчики", icon: UserCog      },
+      { href: "/admin/monitor", label: "Engine Monitor", icon: Activity     },
+      { href: "/automation",    label: "Автопилот",      icon: Bot          },
+      { href: "/team",          label: "AI Команда",     icon: BrainCircuit },
+      { href: "/hub",           label: "Хаб",            icon: Globe        },
+      { href: "/users",         label: "Подписчики",     icon: UserCog      },
     ],
   },
 ];
