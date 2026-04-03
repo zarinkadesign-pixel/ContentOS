@@ -183,7 +183,7 @@ class ProducerCenter(ctk.CTk):
 
     def show(self, name):
         for w in self._content.winfo_children():
-            w.pack_forget()
+            w.destroy()
         screens = {
             "monitor":   MonitorScreen,
             "dashboard": DashboardScreen,
@@ -195,8 +195,6 @@ class ProducerCenter(ctk.CTk):
         }
         # Profile is special
         if name == "profile" and self._active_client:
-            if hasattr(self, "_profile_screen"):
-                self._profile_screen.destroy()
             self._profile_screen = ProfileScreen(self._content, self._active_client, self)
             self._profile_screen.pack(fill="both", expand=True)
         elif name in screens:
@@ -1330,7 +1328,12 @@ class MonitorScreen(ctk.CTkFrame):
     # ── refresh ───────────────────────────────────────────────────────────────
 
     def _schedule_refresh(self):
-        self._refresh()
+        try:
+            if not self.winfo_exists():
+                return
+            self._refresh()
+        except Exception:
+            pass
         self.after(3000, self._schedule_refresh)
 
     def _refresh(self):

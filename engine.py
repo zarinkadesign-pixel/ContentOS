@@ -8,9 +8,22 @@ import threading
 import time
 import json
 import os
+import sys
 import urllib.request
 import urllib.error
 from datetime import datetime
+
+# Fix Windows console encoding so Russian text doesn't crash the engine
+if sys.stdout and hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+if sys.stderr and hasattr(sys.stderr, "reconfigure"):
+    try:
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
 
 BASE       = os.path.dirname(os.path.abspath(__file__))
 LOG_FILE   = os.path.join(BASE, "logs", "engine.log")
@@ -53,13 +66,19 @@ _state_lock = threading.Lock()
 def log(msg: str, level: str = "INFO") -> None:
     ts = datetime.now().strftime("%H:%M:%S")
     line = f"[{ts}] [{level}] {msg}"
-    print(line)
+    try:
+        print(line)
+    except UnicodeEncodeError:
+        print(line.encode("ascii", "replace").decode("ascii"))
     try:
         os.makedirs(os.path.join(BASE, "logs"), exist_ok=True)
         with open(LOG_FILE, "a", encoding="utf-8") as f:
             f.write(line + "\n")
     except Exception as exc:
-        print(f"[log] write error: {exc}")
+        try:
+            print(f"[log] write error: {exc}")
+        except UnicodeEncodeError:
+            pass
     with _state_lock:
         ENGINE_STATE["events"].insert(0, {"time": ts, "msg": msg, "level": level})
         ENGINE_STATE["events"] = ENGINE_STATE["events"][:100]
