@@ -694,7 +694,7 @@ class OnboarderAgent(BaseAgent):
         return 3600
 
     def start_onboarding(self, client: dict) -> str:
-        from agents.memory import ClientMemory  # type: ignore
+        from .memory import ClientMemory
         client_id = str(client.get("id", "unknown"))
         mem = ClientMemory(client_id)
 

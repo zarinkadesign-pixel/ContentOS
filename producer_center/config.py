@@ -2,7 +2,8 @@
 import os
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = os.path.join(BASE_DIR, "data")
+# Shared data directory at project root (same as producer_center_app.py and engine.py)
+DATA_DIR = os.path.join(os.path.dirname(BASE_DIR), "pc_data")
 
 GEMINI_KEY = "YOUR_GEMINI_API_KEY"
 VIZARD_BASE = "https://elb-api.vizard.ai/hvizard-server-front/open-api/v1"

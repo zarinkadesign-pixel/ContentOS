@@ -8,8 +8,9 @@ import os, sys
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE_DIR)
 
-# Создаём папки если нет
-DATA_DIR = os.path.join(BASE_DIR, "data")
+# Shared data directory at project root (same as producer_center_app.py and engine.py)
+ROOT_DIR = os.path.dirname(BASE_DIR)
+DATA_DIR = os.path.join(ROOT_DIR, "pc_data")
 os.makedirs(DATA_DIR, exist_ok=True)
 
 # Создаём пустые файлы данных если нет

@@ -189,24 +189,62 @@ Calendly auto
 
 ```
 D:\Content OS\
-├── producer_center_app.py        ← Desktop app entry point
-├── contentOS_producer.html       ← Web version
-├── ARCHITECTURE.md               ← This file
+├── producer_center_app.py        ← Standalone desktop app (CustomTkinter)
+├── engine.py                     ← Autonomous scheduler (v4.0, run 24/7)
+├── START_ALL.bat                 ← One-click launch: n8n + engine + UI
+├── contentOS_producer.html       ← Web version (single-file)
 ├── content_manager.py            ← CLI queue manager
-├── agents\
-│   ├── agent_system.py           ← 12 agents + orchestrator
-│   └── memory.py                 ← RAG ClientMemory
-├── producer_center\              ← Python UI module
-│   ├── ui\                       ← 8 screens
-│   ├── core\                     ← models, store
-│   └── api\                      ← Gemini, Vizard
-├── pc_data\                      ← JSON data store
-├── memory\                       ← Per-client RAG files
-├── kp\                           ← Generated proposals
+├── ARCHITECTURE.md               ← This file
+│
+├── agents\                       ← AI Agent package
+│   ├── __init__.py               ← Package init
+│   ├── agent_system.py           ← 12 agents + AgentOrchestrator
+│   └── memory.py                 ← RAG ClientMemory (per-client JSON)
+│
+├── producer_center\              ← Full Python UI module (alternative entry)
+│   ├── __init__.py               ← Package init
+│   ├── main.py                   ← Entry point (adds producer_center/ to sys.path)
+│   ├── config.py                 ← Colors, API keys, DATA_DIR → pc_data/
+│   ├── api\
+│   │   ├── gemini.py             ← call_gemini(), build_client_context()
+│   │   └── vizard.py             ← create_project(), poll_project(), publish_video()
+│   ├── core\
+│   │   ├── models.py             ← Lead, Client, Finance dataclasses
+│   │   ├── store.py              ← JSON CRUD for pc_data/
+│   │   └── agents.py             ← 10 agent prompts + run_agent()
+│   └── ui\                       ← 11 screens (CustomTkinter)
+│       ├── app.py                ← Main window + screen routing
+│       ├── sidebar.py            ← Navigation
+│       ├── dashboard.py          ← KPI + charts
+│       ├── crm.py                ← Kanban CRM (6 stages)
+│       ├── clients.py            ← Client list
+│       ├── client_profile.py     ← 9-step journey + RAG tabs
+│       ├── products.py           ← Product lineup
+│       ├── finance.py            ← Income tracking
+│       ├── calls.py              ← Call prep + KP generation
+│       ├── agents.py             ← Agent grid dashboard
+│       └── vizard_pipeline.py    ← 4-step Vizard video pipeline
+│
+├── pc_data\                      ← SHARED JSON data store (all apps)
+│   ├── clients.json
+│   ├── leads.json
+│   ├── finance.json
+│   ├── content_queue.json
+│   └── agent_logs.json
+│
+├── memory\                       ← Per-client RAG knowledge bases
+│   └── {client_id}.json
+├── kp\                           ← Generated commercial proposals
 ├── ads\                          ← Generated ad texts
-├── logs\                         ← System logs
-├── frontend\                     ← Next.js web app
-└── n8n_workflow_*.json           ← 15 automation workflows
+├── logs\                         ← Engine + system logs
+│
+├── frontend\                     ← Next.js 15 web app (Vercel)
+│   ├── app\                      ← App Router pages
+│   ├── components\               ← UI components
+│   ├── lib\                      ← API, auth, AI, types
+│   └── vercel.json               ← Vercel deployment config
+│
+└── n8n_workflow_*.json           ← 15 automation workflows (01-15)
 ```
 
 ---
