@@ -1,13 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getTimeSessions, saveTimeSessions, getActiveSession, saveActiveSession } from "@/lib/kv";
+import { isDemoRequest, demoWriteGuard } from "@/lib/demo-guard";
 import { randomUUID } from "crypto";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  if (isDemoRequest(req)) return NextResponse.json({ sessions: [], active: null });
   const [sessions, active] = await Promise.all([getTimeSessions(), getActiveSession()]);
   return NextResponse.json({ sessions, active });
 }
 
 export async function POST(req: NextRequest) {
+  const guard = demoWriteGuard(req);
+  if (guard) return guard;
   const { action, category = "", note = "" } = await req.json();
 
   if (action === "start") {

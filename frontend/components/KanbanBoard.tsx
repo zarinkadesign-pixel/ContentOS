@@ -76,7 +76,7 @@ export default function KanbanBoard({ leads, onUpdate }: Props) {
               </button>
             </div>
             <form onSubmit={saveEdit} className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {FIELDS.map(({ key, label }) => (
                   <div key={key}>
                     <label className="text-xs text-subtext block mb-1">{label}</label>
@@ -103,11 +103,11 @@ export default function KanbanBoard({ leads, onUpdate }: Props) {
       )}
 
       {/* ── Board ───────────────────────────────────────────────────────────── */}
-      <div className="flex gap-3 overflow-x-auto pb-2">
+      <div className="flex gap-3 overflow-x-auto pb-2 stagger">
         {STAGE_ORDER.map((stage) => {
           const col = leads.filter((l) => l.stage === stage);
           return (
-            <div key={stage} className="shrink-0 w-52">
+            <div key={stage} className="shrink-0 w-44 sm:w-52">
               {/* Column header */}
               <div className="flex items-center justify-between mb-2">
                 <span className={clsx("badge text-xs", STAGE_COLORS[stage])}>

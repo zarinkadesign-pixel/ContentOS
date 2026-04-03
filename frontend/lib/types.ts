@@ -10,6 +10,20 @@ export interface Lead {
   notes: string;
 }
 
+export interface MindMapNode {
+  id: string;
+  label: string;
+  type: "root" | "category" | "node";
+  parent: string | null;
+  color?: string;
+  conversion?: number;
+  note?: string;
+}
+
+export interface MindMapData {
+  nodes: MindMapNode[];
+}
+
 export interface Client {
   id: string;
   name: string;
@@ -29,6 +43,7 @@ export interface Client {
   alerts: string[];
   transactions: Transaction[];
   journey_step: number;
+  mind_map?: MindMapData;
 }
 
 export interface Transaction {
@@ -70,6 +85,15 @@ export interface Task {
   created_at:   string;          // ISO datetime
   completed_at: string | null;
   tags:         string[];
+
+  // AI execution fields (added when task is started)
+  ai_result?:       string;
+  ai_worker?:       string;
+  ai_worker_name?:  string;
+  ai_executed_at?:  string;
+  ai_client_id?:    string | null;
+  ai_client_name?:  string | null;
+  ai_status?:       "done" | "error";
 }
 
 export interface TimeSession {

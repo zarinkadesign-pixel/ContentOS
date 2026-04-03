@@ -1,10 +1,19 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getTasks, getTimeSessions } from "@/lib/kv";
+import { isDemoRequest } from "@/lib/demo-guard";
 
 function isoDate(d: Date) { return d.toISOString().slice(0, 10); }
 
-export async function GET() {
-  const [tasks, sessions] = await Promise.all([getTasks(), getTimeSessions()]);
+const DEMO_TASKS_STAT = [
+  { id: "d1", title: "Снять Reels", period: "day",   due_date: new Date().toISOString().slice(0,10), status: "in_progress", completed_at: null },
+  { id: "d2", title: "Созвон",      period: "week",  due_date: new Date().toISOString().slice(0,10), status: "done",        completed_at: new Date().toISOString() },
+  { id: "d3", title: "Контент-план",period: "month", due_date: new Date().toISOString().slice(0,10), status: "todo",        completed_at: null },
+  { id: "d4", title: "Отчёт",       period: "month", due_date: new Date().toISOString().slice(0,10), status: "done",        completed_at: new Date().toISOString() },
+];
+
+export async function GET(req: NextRequest) {
+  const tasks    = isDemoRequest(req) ? DEMO_TASKS_STAT : await getTasks();
+  const sessions = isDemoRequest(req) ? []              : await getTimeSessions();
 
   const today    = new Date();
   const todayStr = isoDate(today);

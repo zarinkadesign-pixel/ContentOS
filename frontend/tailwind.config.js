@@ -7,6 +7,33 @@ module.exports = {
   ],
   theme: {
     extend: {
+      animation: {
+        "fade-up":    "fade-up 0.35s ease-out both",
+        "fade-in":    "fade-in 0.3s ease-out both",
+        "scale-in":   "scale-in 0.2s ease-out both",
+        "slide-left": "slide-left 0.3s ease-out both",
+      },
+      keyframes: {
+        "fade-up": {
+          "0%":   { opacity: "0", transform: "translateY(12px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+        "fade-in": {
+          "0%":   { opacity: "0" },
+          "100%": { opacity: "1" },
+        },
+        "scale-in": {
+          "0%":   { opacity: "0", transform: "scale(0.96)" },
+          "100%": { opacity: "1", transform: "scale(1)" },
+        },
+        "slide-left": {
+          "0%":   { opacity: "0", transform: "translateX(-12px)" },
+          "100%": { opacity: "1", transform: "translateX(0)" },
+        },
+      },
+      transitionDuration: {
+        "250": "250ms",
+      },
       colors: {
         bg:      "#050710",
         nav:     "#08091c",

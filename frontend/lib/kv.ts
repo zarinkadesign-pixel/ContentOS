@@ -21,6 +21,9 @@ async function kvSet(key: string, value: unknown): Promise<void> {
   mem[key] = value;
 }
 
+// ── Generic exports for use by activity logger ────────────────────────────────
+export { kvGet, kvSet };
+
 // ── Demo seed data ────────────────────────────────────────────────────────────
 function makeDemoClients() {
   return [{
@@ -151,3 +154,80 @@ export async function getTeamTasks(): Promise<any[]> {
   return data ?? [];
 }
 export async function saveTeamTasks(tasks: any[]): Promise<void> { await kvSet("team_tasks", tasks); }
+
+// ── Agent Knowledge Base ──────────────────────────────────────────────────────
+export interface KnowledgeItem {
+  id: string;
+  title: string;
+  content: string;
+  added_at: string;
+}
+
+export async function getAgentKnowledge(agentId: string): Promise<KnowledgeItem[]> {
+  const data = await kvGet<KnowledgeItem[]>(`agent_knowledge:${agentId}`);
+  return data ?? [];
+}
+
+export async function saveAgentKnowledge(agentId: string, items: KnowledgeItem[]): Promise<void> {
+  await kvSet(`agent_knowledge:${agentId}`, items);
+}
+
+// ── Automation Runs ───────────────────────────────────────────────────────────
+export interface AutomationStep {
+  id: string;
+  name: string;
+  worker_id: string;
+  status: "pending" | "running" | "done" | "error";
+  result: string;
+  started_at: string | null;
+  completed_at: string | null;
+}
+
+export interface AutomationRun {
+  id: string;
+  client_id: string;
+  client_name: string;
+  client_niche: string;
+  status: "queued" | "running" | "done" | "error";
+  trigger: "new_client" | "manual" | "scheduled";
+  created_at: string;
+  completed_at: string | null;
+  steps: AutomationStep[];
+}
+
+export async function getAutomationRuns(): Promise<AutomationRun[]> {
+  const data = await kvGet<AutomationRun[]>("automation_runs");
+  return data ?? [];
+}
+export async function saveAutomationRuns(runs: AutomationRun[]): Promise<void> {
+  await kvSet("automation_runs", runs);
+}
+
+// ── Users (auth) ──────────────────────────────────────────────────────────────
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  password_hash: string;
+  password_salt: string;
+  role: "admin" | "hub" | "studio" | "free";
+  plan: "hub_monthly" | "hub_yearly" | "studio_monthly" | "studio_yearly" | "free" | null;
+  plan_expires_at: string | null;
+  plan_active: boolean;
+  created_at: string;
+  last_login: string | null;
+}
+
+export async function getUsers(): Promise<User[]> {
+  const data = await kvGet<User[]>("users");
+  return data ?? [];
+}
+
+export async function saveUsers(users: User[]): Promise<void> {
+  await kvSet("users", users);
+}
+
+export async function getUserByEmail(email: string): Promise<User | null> {
+  const users = await getUsers();
+  return users.find((u) => u.email.toLowerCase() === email.toLowerCase()) ?? null;
+}

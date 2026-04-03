@@ -59,6 +59,14 @@ export const runTeamTask    = (data: { worker_id: string; client_id: string; poi
   req<any>("/api/team/tasks", { method: "POST", body: JSON.stringify(data) });
 export const deleteTeamTask = (id: string) => req<void>(`/api/team/tasks/${id}`, { method: "DELETE" });
 
+// ── Agent Knowledge ───────────────────────────────────────────────────────────
+export const getAgentKnowledge  = (agentId: string) =>
+  req<any[]>(`/api/team/knowledge?agentId=${agentId}`);
+export const addAgentKnowledge  = (agentId: string, title: string, content: string) =>
+  req<any>("/api/team/knowledge", { method: "POST", body: JSON.stringify({ agentId, title, content }) });
+export const deleteAgentKnowledge = (agentId: string, itemId: string) =>
+  req<any>(`/api/team/knowledge/${itemId}?agentId=${agentId}`, { method: "DELETE" });
+
 export const clipVideo     = (videoUrl: string, language = "ru") =>
   req<any>("/api/vizard/clip", { method: "POST", body: JSON.stringify({ video_url: videoUrl, language }) });
 export const getProject    = (id: string)  => req<any>(`/api/vizard/project/${id}`);
