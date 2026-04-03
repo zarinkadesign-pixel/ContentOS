@@ -3126,7 +3126,83 @@ export const TEAM_WORKERS = [
     color: "text-violet-400 bg-violet-400/10",
     schedule: "По запросу",
   },
+  {
+    id: "unpackager",
+    name: "Распаковщик",
+    role: "Brand Unpackager",
+    emoji: "🧠",
+    desc: "Brand story + ценности + УТП + голос бренда + целевая аудитория — полная распаковка",
+    color: "text-pink-400 bg-pink-400/10",
+    schedule: "Онбординг",
+  },
+  {
+    id: "productologist",
+    name: "Продуктолог",
+    role: "Product Line Architect",
+    emoji: "📦",
+    desc: "4-уровневая линейка: лид-магнит / трипваер $47–150 / основной $500 / премиум $1500–3000",
+    color: "text-sky-400 bg-sky-400/10",
+    schedule: "По запросу",
+  },
+  {
+    id: "videoproducer",
+    name: "Видео-продюсер",
+    role: "Reels Script Writer",
+    emoji: "🎬",
+    desc: "5 сценариев Reels по 5 шагам AMAI: хук + проблема + контент + доказательство + CTA",
+    color: "text-red-400 bg-red-400/10",
+    schedule: "По запросу",
+  },
+  {
+    id: "podcast",
+    name: "Подкаст-агент",
+    role: "Podcast Content Producer",
+    emoji: "🎙",
+    desc: "15 вопросов для подкаста: 5 экспертных + 5 кейсов + 5 провокационных → 15 Reels",
+    color: "text-orange-400 bg-orange-400/10",
+    schedule: "1× в месяц",
+  },
 ];
+
+// ── BUSINESS MAP — 9-step journey with checklists ─────────────────────────────
+export const BMAP = [
+  { id: "s1", name: "Онбординг",          color: "#6366f1", icon: "📋",
+    checks: ["Данные заполнены", "Цели указаны", "Соцсети внесены", "Время клиента"] },
+  { id: "s2", name: "Распаковка бренда",  color: "#ec4899", icon: "🧠",
+    checks: ["Brand story", "Ценности (5–7)", "УТП написан", "Голос бренда", "Bio Instagram"] },
+  { id: "s3", name: "Продуктовая линейка",color: "#06b6d4", icon: "📦",
+    checks: ["Лид-магнит (free)", "Продукт $100–300", "Основной $300–800", "Наставничество"] },
+  { id: "s4", name: "Воронка продаж",     color: "#22c55e", icon: "🌀",
+    checks: ["Схема воронки", "Бот настроен", "Прогрев-цепочка", "Скрипты продаж"] },
+  { id: "s5", name: "Контент-план",       color: "#f59e0b", icon: "📱",
+    checks: ["15 вопросов подкаста", "20 тем широкого", "9 рекл. сценариев", "Buffer расписание"] },
+  { id: "s6", name: "Запись подкаста",    color: "#f97316", icon: "🎙",
+    checks: ["Вопросы готовы", "Запись 3–5ч", "Google Drive", "Отправлен в Vizard"] },
+  { id: "s7", name: "Авто-нарезка",       color: "#ef4444", icon: "🎬",
+    checks: ["Клипы нарезаны", "AI подписи", "Расписание", "Публикации вышли"] },
+  { id: "s8", name: "Реклама",            color: "#8b5cf6", icon: "📢",
+    checks: ["3 группы креативов", "Аудитории", "Бюджеты", "Реклама активна"] },
+  { id: "s9", name: "Аналитика и рост",   color: "#10b981", icon: "📊",
+    checks: ["Неделя 1", "Неделя 2", "Неделя 3", "Месячный отчёт"] },
+];
+
+export const LEAD_STAGE_LABELS: Record<string, string> = {
+  new:        "🔵 Новый",
+  contacted:  "📤 Сообщение",
+  replied:    "💬 Ответил",
+  interested: "🔥 Заинтересован",
+  call:       "📞 Созвон",
+  contract:   "📝 Контракт",
+};
+
+export const LEAD_STAGE_COLORS: Record<string, string> = {
+  new:        "#6366f1",
+  contacted:  "#06b6d4",
+  replied:    "#f59e0b",
+  interested: "#ec4899",
+  call:       "#8b5cf6",
+  contract:   "#22c55e",
+};
 
 export function listAgents() {
   return Object.entries(AGENTS).map(([id, a]) => ({ id, name: a.name }));

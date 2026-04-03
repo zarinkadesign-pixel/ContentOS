@@ -301,8 +301,10 @@ export function buildClientContext(client: any): string {
 • Разрыв А→Б: $${((client.income_goal ?? 0) - (client.income_now ?? 0)).toLocaleString("ru")}/мес
 
 🎭 БРЕНД И ЛИЧНОСТЬ
-• Тон и стиль: ${client.personality ?? "не определён"}
-• УТП / Позиционирование: ${client.strategy ?? "не задано"}
+• Тон и стиль: ${typeof client.personality === "object" ? (client.personality?.tone ?? "не определён") : (client.personality ?? "не определён")}
+• История: ${typeof client.personality === "object" ? (client.personality?.story ?? "—") : "—"}
+• Ценности: ${typeof client.personality === "object" ? (client.personality?.values ?? "—") : "—"}
+• УТП: ${typeof client.personality === "object" && client.personality?.usp ? client.personality.usp : (client.strategy ?? "не задано")}
 
 📦 ПРОДУКТОВАЯ ЛИНЕЙКА
 ${products}
