@@ -1,0 +1,85 @@
+{
+  "name": "03 — Meta Leads → CRM → Прогрев",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "meta-leads",
+        "options": {}
+      },
+      "id": "node-meta-001",
+      "name": "Webhook Meta Leads",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "meta-leads-001"
+    },
+    {
+      "parameters": {
+        "functionCode": "const body = $json;\nconst entry = body.entry?.[0]?.changes?.[0]?.value;\nconst leads = entry?.leads || [];\nif (leads.length === 0) {\n  return [{json: {name: body.name || 'Lead', phone: body.phone || '', email: body.email || '', source: 'meta'}}];\n}\nreturn leads.map(lead => {\n  const fields = {};\n  (lead.field_data || []).forEach(f => { fields[f.name] = f.values?.[0] || ''; });\n  return {json: {name: fields.full_name || fields.name || 'Lead', phone: fields.phone_number || fields.phone || '', email: fields.email || '', source: 'meta'}};\n});"
+      },
+      "id": "node-meta-002",
+      "name": "Распарсить лида",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=AIzaSyB37bqKJ7VAJcfV72iQgdqO6QCFPIvDt8U",
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"Напиши приветственное сообщение для нового лида {{ $json.name }} который оставил заявку на рекламе продюсерского агентства AMAImedia. 2-3 предложения. Живо. Закончи вопросом про их бизнес.\"}]}]}",
+        "options": {}
+      },
+      "id": "node-meta-003",
+      "name": "Gemini приветствие",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [720, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot8494012171:AAFTbhHTS0WxlG6PE6DRn96nVVF4kKfBKtY/sendMessage",
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\"chat_id\":\"905075336\",\"text\":\"Новый лид с рекламы!\\nИмя: {{ $('Распарсить лида').item.json.name }}\\nТелефон: {{ $('Распарсить лида').item.json.phone }}\\n\\nAI сообщение:\\n{{ $json.candidates[0].content.parts[0].text }}\"}",
+        "options": {}
+      },
+      "id": "node-meta-004",
+      "name": "Уведомить директора",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [960, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "const d = $('Распарсить лида').item.json;\ntry {\n  const fs = require('fs');\n  const p = 'D:/Content OS/pc_data/leads.json';\n  let arr = [];\n  try { arr = JSON.parse(fs.readFileSync(p,'utf8')); } catch(e) {}\n  arr.push({\n    id: Date.now(),\n    name: d.name || 'Lead',\n    contact: d.phone || d.email || '',\n    niche: 'Meta Ads',\n    source: 'ads',\n    stage: 'new',\n    date: new Date().toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit'}),\n    notes: 'Meta Ads лид'\n  });\n  fs.writeFileSync(p, JSON.stringify(arr, null, 2));\n  return [{json:{status:'saved'}}];\n} catch(e) {\n  return [{json:{status:'error',msg:e.message}}];\n}"
+      },
+      "id": "node-meta-005",
+      "name": "Сохранить в CRM",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [960, 480]
+    }
+  ],
+  "connections": {
+    "Webhook Meta Leads": {
+      "main": [[{"node": "Распарсить лида", "type": "main", "index": 0}]]
+    },
+    "Распарсить лида": {
+      "main": [[{"node": "Gemini приветствие", "type": "main", "index": 0}]]
+    },
+    "Gemini приветствие": {
+      "main": [[
+        {"node": "Уведомить директора", "type": "main", "index": 0},
+        {"node": "Сохранить в CRM", "type": "main", "index": 0}
+      ]]
+    }
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "tags": []
+}

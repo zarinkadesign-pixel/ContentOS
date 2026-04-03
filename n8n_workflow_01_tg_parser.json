@@ -1,0 +1,129 @@
+{
+  "name": "01 — Telegram Parser → CRM",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "tg-parser",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-node",
+      "name": "Webhook — принять лида",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": false },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.name }}",
+              "rightValue": "",
+              "operator": { "type": "string", "operation": "notEmpty" }
+            }
+          ]
+        }
+      },
+      "id": "filter-node",
+      "name": "Фильтр — есть имя?",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
+        "authentication": "none",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "key", "value": "AIzaSyB37bqKJ7VAJcfV72iQgdqO6QCFPIvDt8U" }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "contents",
+              "value": "=[{\"role\":\"user\",\"parts\":[{\"text\":\"Напиши персональное первое сообщение для {{ $json.name }} который написал: {{ $json.message }}. Ниша: {{ $json.niche }}. 3-4 предложения. Живо и по-человечески. Закончи вопросом.\"}]}]"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "gemini-node",
+      "name": "Gemini — написать сообщение",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot8494012171:AAFTbhHTS0WxlG6PE6DRn96nVVF4kKfBKtY/sendMessage",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "chat_id", "value": "={{ $('Webhook — принять лида').item.json.contact.replace('@','') }}" },
+            { "name": "text", "value": "={{ $json.candidates[0].content.parts[0].text }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "tg-send-node",
+      "name": "Telegram — отправить сообщение",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:3000/api/leads",
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={\n  \"name\": \"{{ $('Webhook — принять лида').item.json.name }}\",\n  \"contact\": \"{{ $('Webhook — принять лида').item.json.contact }}\",\n  \"niche\": \"{{ $('Webhook — принять лида').item.json.niche }}\",\n  \"source\": \"telegram\",\n  \"stage\": \"contacted\",\n  \"notes\": \"Авто-парсинг: {{ $('Webhook — принять лида').item.json.keyword }}\"\n}",
+        "options": {}
+      },
+      "id": "crm-node",
+      "name": "CRM — добавить лида",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"status\": \"ok\", \"lead\": \"{{ $('Webhook — принять лида').item.json.name }}\" }"
+      },
+      "id": "response-node",
+      "name": "Ответ — OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1120, 300]
+    }
+  ],
+  "connections": {
+    "Webhook — принять лида": {
+      "main": [[{ "node": "Фильтр — есть имя?", "type": "main", "index": 0 }]]
+    },
+    "Фильтр — есть имя?": {
+      "main": [[{ "node": "Gemini — написать сообщение", "type": "main", "index": 0 }]]
+    },
+    "Gemini — написать сообщение": {
+      "main": [[
+        { "node": "Telegram — отправить сообщение", "type": "main", "index": 0 },
+        { "node": "CRM — добавить лида", "type": "main", "index": 0 }
+      ]]
+    },
+    "Telegram — отправить сообщение": {
+      "main": [[{ "node": "Ответ — OK", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "Producer Center" }]
+}
