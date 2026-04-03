@@ -9,6 +9,8 @@ NAV_ITEMS = [
     ("products",  "📦", "Продукты"),
     ("content",   "🎬", "Контент / Vizard"),
     ("finance",   "💰", "Финансы"),
+    ("agents",    "🤖", "AI Агенты"),
+    ("calls",     "📞", "Созвоны"),
 ]
 
 class Sidebar(ctk.CTkFrame):

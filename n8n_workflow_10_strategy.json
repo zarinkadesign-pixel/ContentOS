@@ -1,0 +1,62 @@
+{
+  "name": "10 — Недельная стратегия",
+  "nodes": [
+    {
+      "parameters": { "rule": { "interval": [{ "field": "cronExpression", "expression": "0 8 * * 1" }] } },
+      "id": "schedule",
+      "name": "Schedule: Пн 08:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "url": "=http://localhost:3000/api/admin/stats",
+        "method": "GET",
+        "headerParameters": { "parameters": [{ "name": "Cookie", "value": "contentOS_token={{ $env.ADMIN_TOKEN }}" }] }
+      },
+      "id": "get-stats",
+      "name": "GET: Статистика за неделю",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "url": "=https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={{ $env.GEMINI_KEY }}",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "contents",
+              "value": "={{ [{\"role\":\"user\",\"parts\":[{\"text\":\"Создай стратегический план на эту неделю для агентства AMAImedia.\\n\\nСтатистика прошлой недели:\\nВсего пользователей: \" + $json.total_users + \"\\nАктивных сегодня: \" + $json.active_today + \"\\nГенераций: \" + $json.total_generations + \"\\n\\nПлан должен включать:\\n\\n## 📊 Итоги прошлой недели\\n[анализ: что сработало, что нет]\\n\\n## 🔥 Топ-5 лидов для проработки\\n[конкретные действия для каждого]\\n\\n## 🎬 Контент на неделю\\n[5 тем Reels с хуками]\\n\\n## 📢 Рекламные тесты\\n[что тестировать, бюджет, аудитория]\\n\\n## 📈 KPI на неделю\\n- Новых лидов: X\\n- Созвонов: X\\n- Доход: $X\\n- Публикаций: X\\n\\n## ✅ Чеклист на понедельник\\n[5 конкретных действий с утра]\"}]}] }}"
+            }
+          ]
+        },
+        "headerParameters": { "parameters": [{ "name": "Content-Type", "value": "application/json" }] }
+      },
+      "id": "gemini-strategy",
+      "name": "Gemini: Стратегия на неделю",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $env.TELEGRAM_CHAT_ID }}",
+        "text": "=📅 НЕДЕЛЬНАЯ СТРАТЕГИЯ AMAI MEDIA\n{{ new Date().toLocaleDateString('ru', {weekday:'long', day:'numeric', month:'long'}) }}\n\n{{ $json.candidates[0].content.parts[0].text }}",
+        "additionalFields": { "parseMode": "Markdown" }
+      },
+      "id": "tg-strategy",
+      "name": "Telegram: Отправить стратегию",
+      "type": "n8n-nodes-base.telegram",
+      "position": [900, 300],
+      "credentials": { "telegramApi": { "id": "1", "name": "Telegram Bot" } }
+    }
+  ],
+  "connections": {
+    "Schedule: Пн 08:00": { "main": [[{ "node": "GET: Статистика за неделю", "type": "main", "index": 0 }]] },
+    "GET: Статистика за неделю": { "main": [[{ "node": "Gemini: Стратегия на неделю", "type": "main", "index": 0 }]] },
+    "Gemini: Стратегия на неделю": { "main": [[{ "node": "Telegram: Отправить стратегию", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "meta": { "templateId": "amai-10", "description": "Каждый понедельник 08:00 — анализ недели, Gemini создаёт стратегию, отправляет в Telegram" }
+}

@@ -1,0 +1,100 @@
+{
+  "name": "08 — Автопубликация контента",
+  "nodes": [
+    {
+      "parameters": { "rule": { "interval": [{ "field": "days", "daysInterval": 2 }] }, "options": { "timezone": "Asia/Almaty" } },
+      "id": "schedule",
+      "name": "Schedule: каждые 2 дня 10:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [240, 300],
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "cronExpression", "expression": "0 10 */2 * *" }]
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=http://localhost:3000/api/content-queue/next",
+        "method": "GET",
+        "options": {}
+      },
+      "id": "get-next-clip",
+      "name": "Get: Следующий клип из очереди",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [{ "value1": "={{ $json.status }}", "operation": "equal", "value2": "scheduled" }]
+        }
+      },
+      "id": "if-has-clip",
+      "name": "Есть клип в очереди?",
+      "type": "n8n-nodes-base.if",
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "url": "=https://elb-api.vizard.ai/hvizard-server-front/open-api/v1/project/publish-video",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "finalVideoId", "value": "={{ $json.vizard_clip_id }}" },
+            { "name": "post", "value": "={{ $json.caption + '\\n\\n' + $json.hashtags.join(' ') }}" },
+            { "name": "publishTime", "value": "={{ Math.floor(Date.now() / 1000) + 300 }}" }
+          ]
+        },
+        "headerParameters": {
+          "parameters": [
+            { "name": "VIZARDAI_API_KEY", "value": "={{ $env.VIZARD_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        }
+      },
+      "id": "vizard-publish",
+      "name": "Vizard: Опубликовать клип",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $env.TELEGRAM_CHAT_ID }}",
+        "text": "=📱 Контент опубликован!\n\n🎬 {{ $node['Get: Следующий клип из очереди'].json.title }}\n📅 {{ new Date().toLocaleDateString('ru') }}\n🏷 {{ $node['Get: Следующий клип из очереди'].json.platform }}\n⚡ Viral score: {{ $node['Get: Следующий клип из очереди'].json.viral_score }}/10",
+        "additionalFields": {}
+      },
+      "id": "tg-notify",
+      "name": "Telegram: Уведомление о публикации",
+      "type": "n8n-nodes-base.telegram",
+      "position": [1100, 200],
+      "credentials": { "telegramApi": { "id": "1", "name": "Telegram Bot" } }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $env.TELEGRAM_CHAT_ID }}",
+        "text": "📭 Очередь контента пуста. Добавьте новые клипы из Vizard в content_queue.json",
+        "additionalFields": {}
+      },
+      "id": "tg-empty",
+      "name": "Telegram: Очередь пуста",
+      "type": "n8n-nodes-base.telegram",
+      "position": [900, 400],
+      "credentials": { "telegramApi": { "id": "1", "name": "Telegram Bot" } }
+    }
+  ],
+  "connections": {
+    "Schedule: каждые 2 дня 10:00": { "main": [[{ "node": "Get: Следующий клип из очереди", "type": "main", "index": 0 }]] },
+    "Get: Следующий клип из очереди": { "main": [[{ "node": "Есть клип в очереди?", "type": "main", "index": 0 }]] },
+    "Есть клип в очереди?": {
+      "main": [
+        [{ "node": "Vizard: Опубликовать клип", "type": "main", "index": 0 }],
+        [{ "node": "Telegram: Очередь пуста", "type": "main", "index": 0 }]
+      ]
+    },
+    "Vizard: Опубликовать клип": { "main": [[{ "node": "Telegram: Уведомление о публикации", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "meta": { "templateId": "amai-08", "description": "Каждые 2 дня 10:00 — берёт следующий клип из очереди, публикует через Vizard, уведомляет Зарину" }
+}

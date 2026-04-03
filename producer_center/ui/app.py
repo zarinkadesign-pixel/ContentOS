@@ -62,6 +62,12 @@ class App(ctk.CTk):
         elif name == "finance":
             from ui.finance import FinanceScreen
             return FinanceScreen(self.content_frame, self)
+        elif name == "agents":
+            from ui.agents import AgentsScreen
+            return AgentsScreen(self.content_frame, self)
+        elif name == "calls":
+            from ui.calls import CallsScreen
+            return CallsScreen(self.content_frame, self)
         else:
             f = ctk.CTkFrame(self.content_frame, fg_color=BG)
             ctk.CTkLabel(f, text=f"📋 {name}", font=("Inter",24,"bold"), text_color=TEXT).pack(pady=40)

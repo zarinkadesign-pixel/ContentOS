@@ -1,0 +1,103 @@
+{
+  "name": "09 — Мониторинг и автоответы",
+  "nodes": [
+    {
+      "parameters": { "rule": { "interval": [{ "field": "cronExpression", "expression": "0 * * * *" }] } },
+      "id": "schedule",
+      "name": "Schedule: каждые 60 минут",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.telegram.org/bot{{ $env.BOT_TOKEN }}/getUpdates?offset={{ $env.LAST_UPDATE_ID || 0 }}&limit=20&allowed_updates=[\"message\"]",
+        "method": "GET"
+      },
+      "id": "get-updates",
+      "name": "Telegram: Получить новые сообщения",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [460, 300]
+    },
+    {
+      "parameters": { "fieldToSplitOut": "result", "options": {} },
+      "id": "split",
+      "name": "Split: по каждому сообщению",
+      "type": "n8n-nodes-base.splitInBatches",
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            { "value1": "={{ $json.message?.text?.toLowerCase() }}", "operation": "contains", "value2": "хочу" },
+            { "value1": "={{ $json.message?.text?.toLowerCase() }}", "operation": "contains", "value2": "интересно" },
+            { "value1": "={{ $json.message?.text?.toLowerCase() }}", "operation": "contains", "value2": "расскажи" }
+          ],
+          "combinator": "any"
+        }
+      },
+      "id": "if-keyword",
+      "name": "Кодовое слово?",
+      "type": "n8n-nodes-base.if",
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "url": "=https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={{ $env.GEMINI_KEY }}",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "contents",
+              "value": "={{ [{\"role\":\"user\",\"parts\":[{\"text\":\"Ты ассистент Зарины из AMAImedia. Напиши дружелюбный ответ на сообщение в Telegram.\\n\\nСообщение: \" + $json.message.text + \"\\n\\nСтиль: тёплый, профессиональный, краткий (до 100 слов). Пригласи на бесплатный разбор если человек заинтересован. Отвечай на русском.\"}]}] }}"
+            }
+          ]
+        },
+        "headerParameters": { "parameters": [{ "name": "Content-Type", "value": "application/json" }] }
+      },
+      "id": "gemini-reply",
+      "name": "Gemini: Генерация ответа",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [1100, 380]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.message.chat.id }}",
+        "text": "={{ $json.candidates[0].content.parts[0].text }}",
+        "additionalFields": {}
+      },
+      "id": "tg-reply",
+      "name": "Telegram: Отправить ответ",
+      "type": "n8n-nodes-base.telegram",
+      "position": [1300, 380],
+      "credentials": { "telegramApi": { "id": "1", "name": "Telegram Bot" } }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $env.TELEGRAM_CHAT_ID }}",
+        "text": "=🔥 Кодовое слово! Человек написал: \"{{ $json.message.text }}\"\n\nChat ID: {{ $json.message.chat.id }}\nИмя: {{ $json.message.from.first_name }}\n\n→ Добавить в CRM: /webhook/add-lead",
+        "additionalFields": {}
+      },
+      "id": "tg-alert-keyword",
+      "name": "Telegram: Алерт по кодовому слову",
+      "type": "n8n-nodes-base.telegram",
+      "position": [1100, 180],
+      "credentials": { "telegramApi": { "id": "1", "name": "Telegram Bot" } }
+    }
+  ],
+  "connections": {
+    "Schedule: каждые 60 минут": { "main": [[{ "node": "Telegram: Получить новые сообщения", "type": "main", "index": 0 }]] },
+    "Telegram: Получить новые сообщения": { "main": [[{ "node": "Split: по каждому сообщению", "type": "main", "index": 0 }]] },
+    "Split: по каждому сообщению": { "main": [[{ "node": "Кодовое слово?", "type": "main", "index": 0 }]] },
+    "Кодовое слово?": {
+      "main": [
+        [{ "node": "Telegram: Алерт по кодовому слову", "type": "main", "index": 0 }, { "node": "Gemini: Генерация ответа", "type": "main", "index": 0 }],
+        [{ "node": "Gemini: Генерация ответа", "type": "main", "index": 0 }]
+      ]
+    },
+    "Gemini: Генерация ответа": { "main": [[{ "node": "Telegram: Отправить ответ", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "meta": { "templateId": "amai-09", "description": "Каждый час проверяет Telegram бота, Gemini отвечает, кодовые слова → алерт Зарине" }
+}

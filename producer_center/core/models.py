@@ -13,6 +13,9 @@ class Lead:
     stage: str = "new"
     date: str = ""
     notes: str = ""
+    score: int = 0
+    score_reason: str = ""
+    next_action: str = ""
 
 @dataclass
 class Client:

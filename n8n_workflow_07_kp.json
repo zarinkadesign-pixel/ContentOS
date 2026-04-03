@@ -1,0 +1,72 @@
+{
+  "name": "07 — Автоматическое КП",
+  "nodes": [
+    {
+      "parameters": { "httpMethod": "POST", "path": "generate-kp", "responseMode": "responseNode" },
+      "id": "webhook-kp",
+      "name": "Webhook: Генерация КП",
+      "type": "n8n-nodes-base.webhook",
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "url": "=https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={{ $env.GEMINI_KEY }}",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "contents",
+              "value": "={{ [{\"role\":\"user\",\"parts\":[{\"text\":\"Создай персональное коммерческое предложение для клиента AMAImedia.\\n\\nДанные клиента:\\nИмя: \" + $json.name + \"\\nНиша: \" + $json.niche + \"\\nЦель: \" + ($json.goal || 'масштабировать бизнес') + \"\\nАудитория: \" + ($json.audience || 'не указана') + \"\\nБюджет: \" + ($json.budget || 'обсуждается') + \"\\n\\nСТРУКТУРА КП:\\n\\n## Ваша ситуация\\n[анализ текущего положения клиента — конкретно, без воды]\\n\\n## Что мы сделаем за 90 дней\\n[3 фазы с конкретными результатами каждой]\\n\\n## Команда на вашем проекте\\n[AI Стратег + AI Копирайтер + AI Аналитик + Зарина как куратор]\\n\\n## Результаты клиентов\\n[2-3 коротких кейса с цифрами из ниши клиента]\\n\\n## Инвестиция\\n[рекомендуемый пакет с ценой, что входит, что даёт]\\n\\n## Следующий шаг\\n[конкретный призыв к действию — ответить / оплатить / записаться]\\n\\nТон: деловой, конкретный, с цифрами. Без воды. На русском языке.\"}]}] }}"
+            }
+          ]
+        },
+        "headerParameters": { "parameters": [{ "name": "Content-Type", "value": "application/json" }] }
+      },
+      "id": "gemini-kp",
+      "name": "Gemini: Генерация КП",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $node['Webhook: Генерация КП'].json.lead_chat_id }}",
+        "text": "=✅ Ваше персональное предложение от AMAImedia:\n\n{{ $json.candidates[0].content.parts[0].text }}\n\n---\nЕсть вопросы? Напишите — отвечу сразу.",
+        "additionalFields": { "parseMode": "Markdown" }
+      },
+      "id": "tg-send-kp",
+      "name": "Telegram: Отправить КП лиду",
+      "type": "n8n-nodes-base.telegram",
+      "position": [680, 220],
+      "credentials": { "telegramApi": { "id": "1", "name": "Telegram Bot" } }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $env.TELEGRAM_CHAT_ID }}",
+        "text": "=📄 КП отправлено!\n\nКлиент: {{ $node['Webhook: Генерация КП'].json.name }}\nНиша: {{ $node['Webhook: Генерация КП'].json.niche }}\n⏱ Сгенерировано за ~30 секунд",
+        "additionalFields": {}
+      },
+      "id": "tg-notify-zarina",
+      "name": "Telegram: Уведомить Зарину",
+      "type": "n8n-nodes-base.telegram",
+      "position": [680, 380],
+      "credentials": { "telegramApi": { "id": "1", "name": "Telegram Bot" } }
+    },
+    {
+      "parameters": { "respondWith": "json", "responseBody": "={ \"status\": \"КП отправлено\", \"client\": $node['Webhook: Генерация КП'].json.name }" },
+      "id": "respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [900, 300]
+    }
+  ],
+  "connections": {
+    "Webhook: Генерация КП": { "main": [[{ "node": "Gemini: Генерация КП", "type": "main", "index": 0 }]] },
+    "Gemini: Генерация КП": {
+      "main": [[{ "node": "Telegram: Отправить КП лиду", "type": "main", "index": 0 }, { "node": "Telegram: Уведомить Зарину", "type": "main", "index": 0 }]]
+    },
+    "Telegram: Уведомить Зарину": { "main": [[{ "node": "Respond", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "meta": { "templateId": "amai-07", "description": "POST /webhook/generate-kp → Gemini генерирует КП → отправляет лиду в Telegram + уведомляет Зарину" }
+}

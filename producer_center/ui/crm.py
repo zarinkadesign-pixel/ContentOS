@@ -73,8 +73,18 @@ class CRMScreen(ctk.CTkFrame):
         body = ctk.CTkFrame(card, fg_color="transparent")
         body.pack(fill="x", padx=10, pady=8)
 
-        ctk.CTkLabel(body, text=lead.name, font=("Inter",12,"bold"),
-                     text_color=TEXT, anchor="w").pack(fill="x")
+        # Name row with AI score badge
+        name_row = ctk.CTkFrame(body, fg_color="transparent")
+        name_row.pack(fill="x")
+        ctk.CTkLabel(name_row, text=lead.name, font=("Inter",12,"bold"),
+                     text_color=TEXT, anchor="w").pack(side="left")
+        score = getattr(lead, "score", 0)
+        if score > 0:
+            score_color = "#22c55e" if score >= 85 else ("#f59e0b" if score >= 70 else "#6b7db3")
+            ctk.CTkLabel(name_row, text=f"⚡{score}",
+                         font=("Inter",10,"bold"), text_color=score_color,
+                         fg_color=score_color+"22", corner_radius=8,
+                         padx=6, pady=2).pack(side="right")
         ctk.CTkLabel(body, text=f"{SOURCE_ICONS.get(lead.source,'❓')} {lead.niche or lead.source} · {lead.date}",
                      font=("Inter",10), text_color=TEXT2, anchor="w").pack(fill="x")
         if lead.contact:
