@@ -173,7 +173,7 @@ class ProducerCenter(ctk.CTk):
         self.configure(fg_color=BG)
         self._active_client = None
         self._build()
-        self.show("dashboard")
+        self.show("monitor")
 
     def _build(self):
         self._sidebar = Sidebar(self, self.show)
@@ -185,6 +185,7 @@ class ProducerCenter(ctk.CTk):
         for w in self._content.winfo_children():
             w.pack_forget()
         screens = {
+            "monitor":   MonitorScreen,
             "dashboard": DashboardScreen,
             "crm":       CRMScreen,
             "clients":   ClientsScreen,
@@ -212,6 +213,7 @@ class ProducerCenter(ctk.CTk):
 # ═══════════════════════════════════════
 class Sidebar(ctk.CTkFrame):
     NAV = [
+        ("monitor","⚡","Монитор"),
         ("dashboard","📊","Дашборд"),
         ("crm","🔍","Поиск / CRM"),
         ("clients","👥","Клиенты"),
@@ -1174,6 +1176,258 @@ class FinanceScreen(ctk.CTkFrame):
             save_finance(fin)
             win.destroy(); self._render()
         btn(win,"✅ Добавить",add,height=40).pack(fill="x",padx=20)
+
+# ═══════════════════════════════════════
+#  MONITOR SCREEN — Engine v4.0
+# ═══════════════════════════════════════
+class MonitorScreen(ctk.CTkFrame):
+    """Real-time dashboard showing engine state every 3 seconds."""
+
+    _AGENT_ICONS = {
+        "hunter": "🔍", "salesman": "💬", "scorer": "📊",
+        "nurture": "🌱", "publisher": "📤", "analyst": "📈",
+        "strategist": "🧠",
+    }
+    _AGENT_NAMES = {
+        "hunter": "Охотник", "salesman": "Продажник", "scorer": "Скорщик",
+        "nurture": "Прогревщик", "publisher": "Публикатор",
+        "analyst": "Аналитик", "strategist": "Стратег",
+    }
+    _EVT_ICONS = {
+        "ERROR": "🔴", "HOT": "🔥", "TASK": "⚙️", "ENGINE": "⚡",
+        "SCORER": "📊", "NURTURE": "🌱", "PUBLISHER": "📤",
+        "ANALYST": "📈", "STRATEGIST": "🧠",
+    }
+    _STATE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                               "pc_data", "engine_state.json")
+
+    def __init__(self, master, app):
+        super().__init__(master, fg_color=BG, corner_radius=0)
+        self.app = app
+        self._engine_proc = None
+        self._build()
+        self._schedule_refresh()
+
+    # ── layout ────────────────────────────────────────────────────────────────
+
+    def _build(self):
+        # Header
+        hdr = ctk.CTkFrame(self, fg_color=NAV, corner_radius=0, height=56)
+        hdr.pack(fill="x")
+        hdr.pack_propagate(False)
+        label(hdr, "⚡ Mission Control — Autonomous Engine v4.0",
+              18, bold=True).pack(side="left", padx=20, pady=14)
+
+        # Status bar
+        sb = ctk.CTkFrame(self, fg_color=CARD, corner_radius=0, height=48)
+        sb.pack(fill="x")
+        sb.pack_propagate(False)
+
+        self._status_lbl = ctk.CTkLabel(
+            sb, text="⏸ ENGINE ОСТАНОВЛЕН",
+            font=("Inter", 13, "bold"), text_color=ORANGE)
+        self._status_lbl.pack(side="left", padx=16, pady=12)
+
+        self._uptime_lbl = ctk.CTkLabel(sb, text="",
+                                         font=("Inter", 11), text_color=TEXT2)
+        self._uptime_lbl.pack(side="left", padx=8)
+
+        bf = ctk.CTkFrame(sb, fg_color="transparent")
+        bf.pack(side="right", padx=16, pady=8)
+
+        self._btn_start = ctk.CTkButton(
+            bf, text="▶ Запустить", width=110,
+            fg_color=GREEN, text_color="#000", font=("Inter", 11, "bold"),
+            corner_radius=8, command=self._start_engine)
+        self._btn_start.pack(side="left", padx=4)
+
+        self._btn_stop = ctk.CTkButton(
+            bf, text="⏸ Пауза", width=90,
+            fg_color=ORANGE, text_color="#000", font=("Inter", 11, "bold"),
+            corner_radius=8, command=self._stop_engine, state="disabled")
+        self._btn_stop.pack(side="left", padx=4)
+
+        ctk.CTkButton(
+            bf, text="🔄 Рестарт", width=90,
+            fg_color=CARD2, text_color=TEXT2, font=("Inter", 11),
+            corner_radius=8, command=self._restart_engine
+        ).pack(side="left", padx=4)
+
+        # Main 3-column grid
+        main = ctk.CTkFrame(self, fg_color="transparent")
+        main.pack(fill="both", expand=True, padx=12, pady=8)
+        main.columnconfigure(0, weight=35)
+        main.columnconfigure(1, weight=40)
+        main.columnconfigure(2, weight=25)
+        main.rowconfigure(0, weight=1)
+
+        # Left — agents
+        lf = ctk.CTkFrame(main, fg_color=CARD, corner_radius=12,
+                           border_width=1, border_color=BORDER)
+        lf.grid(row=0, column=0, sticky="nsew", padx=(0, 6))
+        label(lf, "Агенты", 13, bold=True).pack(anchor="w", padx=12, pady=(10, 6))
+        self._agents_frame = ctk.CTkScrollableFrame(
+            lf, fg_color="transparent", corner_radius=0)
+        self._agents_frame.pack(fill="both", expand=True, padx=6, pady=(0, 8))
+
+        # Center — event feed
+        cf = ctk.CTkFrame(main, fg_color=CARD, corner_radius=12,
+                           border_width=1, border_color=BORDER)
+        cf.grid(row=0, column=1, sticky="nsew", padx=6)
+        label(cf, "Лента событий", 13, bold=True).pack(anchor="w", padx=12, pady=(10, 6))
+        self._events_box = ctk.CTkTextbox(
+            cf, fg_color=CARD2, text_color=TEXT2,
+            font=("Courier", 10), corner_radius=8,
+            border_width=0, state="disabled")
+        self._events_box.pack(fill="both", expand=True, padx=8, pady=(0, 8))
+
+        # Right — schedule + stats
+        rf = ctk.CTkFrame(main, fg_color=CARD, corner_radius=12,
+                           border_width=1, border_color=BORDER)
+        rf.grid(row=0, column=2, sticky="nsew", padx=(6, 0))
+        label(rf, "Расписание", 13, bold=True).pack(anchor="w", padx=12, pady=(10, 6))
+        self._schedule_frame = ctk.CTkScrollableFrame(
+            rf, fg_color="transparent", corner_radius=0, height=220)
+        self._schedule_frame.pack(fill="x", padx=6)
+
+        label(rf, "Статистика дня", 12, bold=True).pack(anchor="w", padx=12, pady=(14, 4))
+        self._stats_frame = ctk.CTkFrame(rf, fg_color="transparent")
+        self._stats_frame.pack(fill="x", padx=12, pady=(0, 8))
+
+    # ── engine control ────────────────────────────────────────────────────────
+
+    def _start_engine(self):
+        import subprocess
+        py = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                          "python_embedded", "python.exe")
+        if not os.path.exists(py):
+            py = "python"
+        eng = os.path.join(os.path.dirname(os.path.abspath(__file__)), "engine.py")
+        try:
+            flags = getattr(subprocess, "CREATE_NEW_CONSOLE", 0)
+            self._engine_proc = subprocess.Popen([py, eng], creationflags=flags)
+            self._btn_start.configure(state="disabled")
+            self._btn_stop.configure(state="normal")
+            self._status_lbl.configure(text="🟢 ENGINE РАБОТАЕТ", text_color=GREEN)
+        except Exception as exc:
+            self._status_lbl.configure(text=f"❌ Ошибка: {exc}", text_color=RED)
+
+    def _stop_engine(self):
+        if self._engine_proc:
+            try:
+                self._engine_proc.terminate()
+            except Exception:
+                pass
+        self._engine_proc = None
+        self._btn_start.configure(state="normal")
+        self._btn_stop.configure(state="disabled")
+        self._status_lbl.configure(text="⏸ ENGINE ОСТАНОВЛЕН", text_color=ORANGE)
+
+    def _restart_engine(self):
+        self._stop_engine()
+        self.after(2000, self._start_engine)
+
+    # ── refresh ───────────────────────────────────────────────────────────────
+
+    def _schedule_refresh(self):
+        self._refresh()
+        self.after(3000, self._schedule_refresh)
+
+    def _refresh(self):
+        try:
+            if os.path.exists(self._STATE_FILE):
+                with open(self._STATE_FILE, encoding="utf-8") as f:
+                    state = json.load(f)
+                self._update_ui(state)
+        except Exception:
+            pass
+
+    def _update_ui(self, state: dict):
+        # Status bar uptime
+        started = state.get("started_at", "")
+        if started and state.get("running"):
+            try:
+                st = datetime.strptime(started, "%Y-%m-%d %H:%M:%S")
+                delta = datetime.now() - st
+                h, rem = divmod(int(delta.total_seconds()), 3600)
+                m = rem // 60
+                self._uptime_lbl.configure(text=f"Запущен: {started[:16]}  Uptime: {h}h {m}m")
+                self._status_lbl.configure(text="🟢 ENGINE РАБОТАЕТ", text_color=GREEN)
+            except Exception:
+                pass
+
+        # Agents column
+        for w in self._agents_frame.winfo_children():
+            w.destroy()
+        for key, agent in state.get("agents", {}).items():
+            status = agent.get("status", "idle")
+            dot = "🟢" if status == "idle" else ("🟡" if status == "working" else "🔴")
+            row = ctk.CTkFrame(self._agents_frame, fg_color=CARD2, corner_radius=8)
+            row.pack(fill="x", pady=2)
+            ctk.CTkLabel(
+                row,
+                text=f"{dot} {self._AGENT_ICONS.get(key, '')} {self._AGENT_NAMES.get(key, key)}",
+                font=("Inter", 11), text_color=TEXT,
+            ).pack(side="left", padx=8, pady=6)
+            ctk.CTkLabel(
+                row,
+                text=f"сег:{agent.get('today', 0)}  всего:{agent.get('total', 0)}",
+                font=("Inter", 10), text_color=TEXT2,
+            ).pack(side="right", padx=8)
+
+        # Event feed
+        events = state.get("events", [])
+        self._events_box.configure(state="normal")
+        self._events_box.delete("1.0", "end")
+        for ev in events[:60]:
+            icon = self._EVT_ICONS.get(ev.get("level", ""), "•")
+            self._events_box.insert(
+                "end",
+                f"[{ev.get('time', '')}] {icon} {ev.get('msg', '')}\n",
+            )
+        self._events_box.configure(state="disabled")
+
+        # Schedule column
+        for w in self._schedule_frame.winfo_children():
+            w.destroy()
+        schedule_info = [
+            ("daily_briefing",   "☀️ Брифинг дня",          "09:00 ежедневно"),
+            ("lead_scoring",     "📊 Скоринг лидов",         "каждые 15 мин"),
+            ("nurture_sequence", "🌱 Прогрев цепочка",       "каждый час"),
+            ("content_publish",  "📤 Публикация контента",   "каждые 2ч в 10:00"),
+            ("weekly_report",    "📈 Недельный отчёт",       "вс 20:00"),
+            ("weekly_strategy",  "🎯 Стратегия недели",      "пн 08:00"),
+        ]
+        tasks = state.get("tasks", {})
+        for key, name, when in schedule_info:
+            last = tasks.get(key, {}).get("last_run", "—")
+            if last and last != "—":
+                last = last[11:16]
+            r = ctk.CTkFrame(self._schedule_frame, fg_color=CARD2, corner_radius=7)
+            r.pack(fill="x", pady=2)
+            ctk.CTkLabel(r, text=name, font=("Inter", 10, "bold"),
+                         text_color=TEXT).pack(anchor="w", padx=8, pady=(4, 0))
+            ctk.CTkLabel(r, text=f"⏰ {when}  |  последний: {last}",
+                         font=("Inter", 9), text_color=TEXT2).pack(anchor="w", padx=8, pady=(0, 4))
+
+        # Stats
+        for w in self._stats_frame.winfo_children():
+            w.destroy()
+        stats_labels = [
+            ("leads_today",       "Лидов найдено"),
+            ("messages_sent",     "Сообщений отправлено"),
+            ("content_published", "Опубликовано клипов"),
+            ("calls_scheduled",   "Созвонов запланировано"),
+        ]
+        stats = state.get("stats", {})
+        for key, lbl in stats_labels:
+            r = ctk.CTkFrame(self._stats_frame, fg_color="transparent")
+            r.pack(fill="x", pady=2)
+            ctk.CTkLabel(r, text=lbl, font=("Inter", 10),
+                         text_color=TEXT2).pack(side="left")
+            ctk.CTkLabel(r, text=str(stats.get(key, 0)),
+                         font=("Inter", 11, "bold"), text_color=ACCENT).pack(side="right")
+
 
 # ═══════════════════════════════════════
 #  ЗАПУСК
