@@ -1206,21 +1206,21 @@ class MonitorScreen(ctk.CTkFrame):
     def _build(self):
         hdr = ctk.CTkFrame(self, fg_color=NAV, corner_radius=0, height=56)
         hdr.pack(fill="x"); hdr.pack_propagate(False)
-        label(hdr, "⚡ Engine Monitor — Автопилот", 18, bold=True).pack(side="left", padx=20, pady=14)
+        label(hdr, "⚡ Engine Monitor — Автопилот 24/7", 18, bold=True).pack(side="left", padx=20, pady=14)
 
-        self._stat_bar = ctk.CTkFrame(self, fg_color=CARD, corner_radius=0, height=44)
-        self._stat_bar.pack(fill="x"); self._stat_bar.pack_propagate(False)
+        sb = ctk.CTkFrame(self, fg_color=CARD, corner_radius=0, height=44)
+        sb.pack(fill="x"); sb.pack_propagate(False)
+        self._slbl = label(sb, "⏸ ENGINE НЕ ЗАПУЩЕН", 12, ORANGE, bold=True)
+        self._slbl.pack(side="left", padx=16, pady=12)
+        self._ulbl = label(sb, "", 10, TEXT2)
+        self._ulbl.pack(side="left", padx=6)
 
-        self._stat_lbl = label(self._stat_bar, "⏸ ENGINE ОСТАНОВЛЕН", 12, ORANGE, bold=True)
-        self._stat_lbl.pack(side="left", padx=16, pady=12)
-        self._uptime_lbl = label(self._stat_bar, "", 10, TEXT2)
-        self._uptime_lbl.pack(side="left", padx=6)
-
-        bf = ctk.CTkFrame(self._stat_bar, fg_color="transparent")
+        bf = ctk.CTkFrame(sb, fg_color="transparent")
         bf.pack(side="right", padx=14, pady=8)
         btn(bf, "▶ Запустить", self._start, GREEN, height=28, width=110).pack(side="left", padx=3)
-        btn(bf, "⏸ Стоп",     self._stop,  ORANGE, height=28, width=80).pack(side="left", padx=3)
-        btn(bf, "🔄",          self._restart, CARD2, height=28, width=40).pack(side="left", padx=3)
+        btn(bf, "⏸ Стоп", self._stop, ORANGE, height=28, width=80).pack(side="left", padx=3)
+        btn(bf, "🔄", lambda: (self._stop(), self.after(2500, self._start)),
+            CARD2, height=28, width=40).pack(side="left", padx=3)
 
         body = ctk.CTkFrame(self, fg_color="transparent")
         body.pack(fill="both", expand=True, padx=10, pady=8)
@@ -1229,165 +1229,105 @@ class MonitorScreen(ctk.CTkFrame):
         body.columnconfigure(2, weight=3)
         body.rowconfigure(0, weight=1)
 
-        lf = card(body); lf.grid(row=0, column=0, sticky="nsew", padx=(0, 5))
-        label(lf, "AI Агенты", 13, bold=True).pack(anchor="w", padx=12, pady=(10, 6))
-        self._agents_f = ctk.CTkScrollableFrame(lf, fg_color="transparent", corner_radius=0)
-        self._agents_f.pack(fill="both", expand=True, padx=4, pady=(0, 6))
+        lf = card(body); lf.grid(row=0, column=0, sticky="nsew", padx=(0,5))
+        label(lf, "AI Агенты", 13, bold=True).pack(anchor="w", padx=12, pady=(10,6))
+        self._af = ctk.CTkScrollableFrame(lf, fg_color="transparent", corner_radius=0)
+        self._af.pack(fill="both", expand=True, padx=4, pady=(0,6))
 
         cf = card(body); cf.grid(row=0, column=1, sticky="nsew", padx=5)
-        label(cf, "Лента событий (live)", 13, bold=True).pack(anchor="w", padx=12, pady=(10, 6))
-        self._events_box = ctk.CTkTextbox(cf, fg_color=CARD2, text_color=TEXT2,
-                                           font=("Courier", 10), corner_radius=8,
-                                           border_width=0, state="disabled")
-        self._events_box.pack(fill="both", expand=True, padx=6, pady=(0, 6))
+        label(cf, "Лента событий", 13, bold=True).pack(anchor="w", padx=12, pady=(10,6))
+        self._eb = ctk.CTkTextbox(cf, fg_color=CARD2, text_color=TEXT2,
+                                   font=("Courier", 9), corner_radius=8,
+                                   border_width=0, state="disabled")
+        self._eb.pack(fill="both", expand=True, padx=6, pady=(0,6))
 
-        rf = card(body); rf.grid(row=0, column=2, sticky="nsew", padx=(5, 0))
-        label(rf, "Статистика дня", 13, bold=True).pack(anchor="w", padx=12, pady=(10, 6))
-        self._stats_f = ctk.CTkFrame(rf, fg_color="transparent")
-        self._stats_f.pack(fill="x", padx=12)
-        label(rf, "Задачи", 12, bold=True).pack(anchor="w", padx=12, pady=(14, 4))
-        self._sched_f = ctk.CTkScrollableFrame(rf, fg_color="transparent", corner_radius=0, height=160)
-        self._sched_f.pack(fill="x", padx=6, pady=(0, 6))
+        rf = card(body); rf.grid(row=0, column=2, sticky="nsew", padx=(5,0))
+        label(rf, "Статистика", 13, bold=True).pack(anchor="w", padx=12, pady=(10,6))
+        self._sf = ctk.CTkFrame(rf, fg_color="transparent")
+        self._sf.pack(fill="x", padx=12, pady=(0,8))
 
     def _start(self):
-        import subprocess
-        base   = os.path.dirname(os.path.abspath(__file__))
+        base = os.path.dirname(os.path.abspath(__file__))
         python = os.path.join(base, "python_embedded", "python.exe")
         engine = os.path.join(base, "engine.py")
         if not os.path.exists(python):
             python = "python"
-        state_path = os.path.join(base, "pc_data", "engine_state.json")
         try:
-            if os.path.exists(state_path):
-                with open(state_path, encoding="utf-8") as f:
-                    st = json.load(f)
-                st.pop("stop_signal", None)
-                with open(state_path, "w", encoding="utf-8") as f:
-                    json.dump(st, f, ensure_ascii=False, indent=2)
-        except Exception:
-            pass
-        try:
+            import subprocess
             flags = getattr(subprocess, "CREATE_NEW_CONSOLE", 0)
             self._proc = subprocess.Popen([python, engine], cwd=base, creationflags=flags)
-            self._stat_lbl.configure(text="🟢 ENGINE ЗАПУСКАЕТСЯ...", text_color=GREEN)
+            self._slbl.configure(text="🟢 ENGINE ЗАПУСКАЕТСЯ...", text_color=GREEN)
         except Exception as e:
-            self._stat_lbl.configure(text=f"❌ Ошибка: {e}", text_color=RED)
+            self._slbl.configure(text=f"❌ {e}", text_color=RED)
 
     def _stop(self):
-        state_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                  "pc_data", "engine_state.json")
+        sp = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                          "pc_data", "engine_state.json")
         try:
-            state = {}
-            if os.path.exists(state_path):
-                with open(state_path, encoding="utf-8") as f:
-                    state = json.load(f)
-            state["stop_signal"] = True
-            os.makedirs(os.path.dirname(state_path), exist_ok=True)
-            with open(state_path, "w", encoding="utf-8") as f:
-                json.dump(state, f, ensure_ascii=False, indent=2)
-        except Exception:
-            pass
+            s = {}
+            if os.path.exists(sp):
+                with open(sp, encoding="utf-8") as f: s = json.load(f)
+            s["stop_signal"] = True
+            with open(sp, "w", encoding="utf-8") as f:
+                json.dump(s, f, ensure_ascii=False, indent=2)
+        except: pass
         if self._proc:
-            try:
-                self._proc.terminate()
-            except Exception:
-                pass
-        self._proc = None
-        self._stat_lbl.configure(text="⏸ ENGINE ОСТАНОВЛЕН", text_color=ORANGE)
-        self._uptime_lbl.configure(text="")
-
-    def _restart(self):
-        self._stop()
-        self.after(2500, self._start)
+            try: self._proc.terminate()
+            except: pass
+        self._slbl.configure(text="⏸ ENGINE ОСТАНОВЛЕН", text_color=ORANGE)
 
     def _refresh(self):
         try:
-            state_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                      "pc_data", "engine_state.json")
-            if os.path.exists(state_path):
-                with open(state_path, encoding="utf-8") as f:
+            sp = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                              "pc_data", "engine_state.json")
+            if os.path.exists(sp):
+                with open(sp, encoding="utf-8") as f:
                     s = json.load(f)
-                self._render_state(s)
+                self._render(s)
             else:
-                self._stat_lbl.configure(
-                    text="⏸ ENGINE НЕ ЗАПУЩЕН — нажми ▶ Запустить",
-                    text_color=TEXT2)
-        except Exception:
-            pass
-        try:
-            if self.winfo_exists():
-                self.after(3000, self._refresh)
-        except Exception:
-            pass
+                self._slbl.configure(text="⏸ Нажми ▶ Запустить", text_color=TEXT2)
+        except: pass
+        self.after(3000, self._refresh)
 
-    def _render_state(self, s):
-        running  = s.get("running", False)
-        stop_sig = s.get("stop_signal", False)
-        started  = s.get("started_at", "")
-        if running and not stop_sig:
-            self._stat_lbl.configure(text="🟢 ENGINE РАБОТАЕТ", text_color=GREEN)
-            self._uptime_lbl.configure(text=f"Запущен: {started}")
+    def _render(self, s):
+        if s.get("running") and not s.get("stop_signal"):
+            self._slbl.configure(text="🟢 ENGINE РАБОТАЕТ", text_color=GREEN)
+            self._ulbl.configure(text=f"с {s.get('started_at','')[:16]}")
         else:
-            self._stat_lbl.configure(text="⏸ ENGINE ОСТАНОВЛЕН", text_color=ORANGE)
-            self._uptime_lbl.configure(text="")
+            self._slbl.configure(text="⏸ ENGINE ОСТАНОВЛЕН", text_color=ORANGE)
+            self._ulbl.configure(text="")
 
-        for w in self._agents_f.winfo_children():
-            w.destroy()
-        ICONS = {"scorer": "📊", "nurture": "🌱", "publisher": "📤",
-                 "analyst": "📈", "strategist": "🧠"}
-        NAMES = {"scorer": "Скорщик", "nurture": "Прогревщик",
-                 "publisher": "Публикатор", "analyst": "Аналитик",
-                 "strategist": "Стратег"}
-        for key, ag in s.get("agents", {}).items():
+        for w in self._af.winfo_children(): w.destroy()
+        ICONS = {"scorer":"📊","nurture":"🌱","publisher":"📤","analyst":"📈"}
+        NAMES = {"scorer":"Скорщик","nurture":"Прогревщик",
+                 "publisher":"Публикатор","analyst":"Аналитик"}
+        for k, ag in s.get("agents", {}).items():
             st = ag.get("status", "idle")
-            dot = "🟢" if st == "idle" else ("🟡" if st == "working" else "🔴")
-            r = ctk.CTkFrame(self._agents_f, fg_color=CARD2, corner_radius=8)
+            dot = "🟢" if st=="idle" else ("🟡" if st=="working" else "🔴")
+            r = ctk.CTkFrame(self._af, fg_color=CARD2, corner_radius=8)
             r.pack(fill="x", pady=2)
-            label(r, f"{dot} {ICONS.get(key, '')} {NAMES.get(key, key)}", 10
-                  ).pack(side="left", padx=8, pady=6)
-            label(r, f"сег:{ag.get('today', 0)} / итого:{ag.get('total', 0)}", 9, TEXT2
-                  ).pack(side="right", padx=8)
+            label(r, f"{dot} {ICONS.get(k,'')} {NAMES.get(k,k)}", 10).pack(side="left", padx=8, pady=5)
+            label(r, f"{ag.get('today',0)} / {ag.get('total',0)}", 9, TEXT2).pack(side="right", padx=8)
 
-        events = s.get("events", [])
-        self._events_box.configure(state="normal")
-        self._events_box.delete("1.0", "end")
-        ICONS_LVL = {"ERROR": "🔴", "HOT": "🔥", "ENGINE": "⚡",
-                     "SCORER": "📊", "NURTURE": "🌱", "PUBLISHER": "📤",
-                     "ANALYST": "📈", "TASK": "⚙️"}
-        for ev in events[:60]:
-            ic = ICONS_LVL.get(ev.get("level", ""), "•")
-            self._events_box.insert("end", f"[{ev.get('time', '')}] {ic} {ev.get('msg', '')}\n")
-        self._events_box.configure(state="disabled")
+        self._eb.configure(state="normal")
+        self._eb.delete("1.0","end")
+        LVL = {"HOT":"🔥","ENGINE":"⚡","SCORER":"📊",
+               "NURTURE":"🌱","PUBLISHER":"📤","ANALYST":"📈","ERROR":"🔴"}
+        for ev in s.get("events",[])[:50]:
+            ic = LVL.get(ev.get("level",""),"•")
+            self._eb.insert("end", f"[{ev.get('time','')}] {ic} {ev.get('msg','')}\n")
+        self._eb.configure(state="disabled")
 
-        for w in self._stats_f.winfo_children():
-            w.destroy()
-        st = s.get("stats", {})
-        for k, lbl_txt in [("leads_today",       "Лидов сегодня"),
-                            ("messages_sent",     "Сообщений отправлено"),
-                            ("content_published", "Клипов опубликовано"),
-                            ("calls_scheduled",   "Созвонов")]:
-            r = ctk.CTkFrame(self._stats_f, fg_color="transparent")
-            r.pack(fill="x", pady=2)
-            label(r, lbl_txt, 10, TEXT2).pack(side="left")
-            label(r, str(st.get(k, 0)), 12, ACCENT, bold=True).pack(side="right")
-
-        for w in self._sched_f.winfo_children():
-            w.destroy()
-        tasks = s.get("tasks", {})
-        task_names = {"daily_briefing":   "Брифинг",
-                      "lead_scoring":     "Скоринг лидов",
-                      "nurture_sequence": "Прогрев",
-                      "publish":          "Публикация",
-                      "weekly_report":    "Недельный отчёт"}
-        for key, info in tasks.items():
-            r = ctk.CTkFrame(self._sched_f, fg_color="transparent")
-            r.pack(fill="x", pady=1)
-            label(r, f"⏰ {task_names.get(key, key)}", 9, TEXT2).pack(side="left", padx=4)
-            label(r, f"#{info.get('count', 0)}", 9, ACCENT).pack(side="right", padx=4)
+        for w in self._sf.winfo_children(): w.destroy()
+        for k, lbl_txt in [("leads_today","Лидов сегодня"),
+                            ("messages_sent","Сообщений"),
+                            ("content_published","Клипов"),
+                            ("calls_scheduled","Созвонов")]:
+            r = ctk.CTkFrame(self._sf, fg_color="transparent"); r.pack(fill="x", pady=2)
+            label(r, lbl_txt, 9, TEXT2).pack(side="left")
+            label(r, str(s.get("stats",{}).get(k,0)), 11, ACCENT, bold=True).pack(side="right")
 
 
-
-# ═══════════════════════════════════════
 #  PRODUCER CENTER (embedded sub-app)
 # ═══════════════════════════════════════
 class ProducerScreen(ctk.CTkFrame):
