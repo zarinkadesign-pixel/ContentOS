@@ -1368,7 +1368,8 @@ class MonitorScreen(ctk.CTkFrame):
         except Exception:
             pass
         try:
-            flags = getattr(subprocess, "CREATE_NEW_CONSOLE", 0)
+            # CREATE_NO_WINDOW — engine runs silently in background, no console popup
+            flags = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
             self._engine_proc = subprocess.Popen(
                 [py, eng], cwd=BASE, creationflags=flags)
             self._btn_start.configure(state="disabled")
@@ -1420,7 +1421,8 @@ class MonitorScreen(ctk.CTkFrame):
         if not os.path.exists(py):
             py = "python"
         script = os.path.join(BASE, "transcribe.py")
-        flags = getattr(subprocess, "CREATE_NEW_CONSOLE", 0)
+        # CREATE_NEW_CONSOLE for transcribe — user needs to see progress in terminal
+        flags = getattr(subprocess, "CREATE_NEW_CONSOLE", 0x00000010)
         subprocess.Popen([py, script, path], creationflags=flags)
 
     def _btn_enrich(self):
