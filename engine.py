@@ -81,9 +81,17 @@ _lock = threading.Lock()
 def save():
     try:
         with _lock:
-            snapshot = json.dumps(S, ensure_ascii=False, indent=2)
+            snapshot = dict(S)
+        # Preserve stop_signal written externally by UI
+        try:
+            with open(STATE, encoding="utf-8") as f:
+                old = json.load(f)
+            if old.get("stop_signal"):
+                snapshot["stop_signal"] = True
+        except Exception:
+            pass
         with open(STATE, "w", encoding="utf-8") as f:
-            f.write(snapshot)
+            json.dump(snapshot, f, ensure_ascii=False, indent=2)
     except Exception as exc:
         print(f"[save] {exc}")
 
@@ -408,11 +416,11 @@ def task_weekly_report():
 # ── Scheduler ─────────────────────────────────────────────────────────────────
 # (name, func, interval_minutes, required_hour, required_weekday)
 TASKS = [
-    ("briefing",      task_briefing,      1440,  9,    None),  # daily 09:00
-    ("scoring",       task_scoring,         15,  None, None),  # every 15 min
-    ("nurture",       task_nurture,         60,  None, None),  # every hour
-    ("publish",       task_publish,        120,  10,   None),  # every 2h at 10:00
-    ("weekly_report", task_weekly_report, 10080, 20,   6),     # Sunday 20:00
+    ("daily_briefing",  task_briefing,      1440,  9,    None),  # daily 09:00
+    ("lead_scoring",    task_scoring,         15,  None, None),  # every 15 min
+    ("nurture_sequence",task_nurture,         60,  None, None),  # every hour
+    ("publish",         task_publish,        120,  10,   None),  # every 2h at 10:00
+    ("weekly_report",   task_weekly_report, 10080, 20,   6),     # Sunday 20:00
 ]
 
 
