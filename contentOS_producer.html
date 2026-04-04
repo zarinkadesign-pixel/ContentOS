@@ -546,6 +546,13 @@ textarea.inp{resize:none;min-height:80px}
 .prod-file-name{font-size:.65rem;color:var(--accent);margin-top:3px;font-family:var(--fontb)}
 /* ── PROFILE PHOTO BLOCK ADJUSTMENTS ── */
 #prof-gen-noprompt-btn:hover{border-color:var(--text2)!important;color:var(--text)!important}
+/* ── n8n workflow rows ── */
+.n8n-wf-row{display:flex;align-items:center;gap:8px;background:var(--card2);border-radius:8px;padding:7px 10px}
+.n8n-wf-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.n8n-wf-dot.on{background:#22C55E;box-shadow:0 0 6px #22C55E88}
+.n8n-wf-dot.off{background:#FF3B5C}
+.n8n-wf-name{flex:1;font-size:.72rem;font-weight:600;color:var(--text);font-family:var(--fontb)}
+.n8n-wf-cron{font-size:.62rem;color:var(--text3);font-family:var(--fontb);white-space:nowrap}
 
 /* ════════════════════════════════════
    VISUAL CONTENT
@@ -1373,6 +1380,48 @@ textarea.inp{resize:none;min-height:80px}
           <button class="btn btn-ghost btn-sm" onclick="copyProfPhotoPrompt()">📋 Копировать</button>
           <button class="btn btn-ghost btn-sm" onclick="saveProfPhotoToNotes()">💾 В заметки</button>
         </div>
+      </div>
+    </div>
+
+    <!-- ══ N8N АВТОМАТИЗАЦИИ ══ -->
+    <div class="card" style="margin-top:12px;margin-bottom:16px" id="n8n-workflows-block">
+      <div style="display:flex;align-items:center;gap:9px;margin-bottom:14px">
+        <div style="width:36px;height:36px;border-radius:10px;background:rgba(255,100,0,.15);display:flex;align-items:center;justify-content:center;font-size:1.1rem">⚙️</div>
+        <div>
+          <div style="font-weight:800;color:var(--text);font-size:.9rem">n8n Автоматизации</div>
+          <div style="font-size:.65rem;color:var(--text3);font-family:var(--fontb)">17 воркфлоу · AMAImedia Engine v4.0</div>
+        </div>
+        <a href="http://localhost:5678" target="_blank" style="margin-left:auto;padding:6px 12px;background:rgba(255,100,0,.2);border:1px solid rgba(255,100,0,.4);border-radius:8px;color:#FF6400;font-size:.65rem;font-weight:700;text-decoration:none;white-space:nowrap">Открыть →</a>
+      </div>
+
+      <div style="font-size:.6rem;font-weight:700;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px">⏱ По расписанию</div>
+      <div style="display:grid;gap:5px;margin-bottom:10px">
+        <div class="n8n-wf-row"><div class="n8n-wf-dot on"></div><div class="n8n-wf-name">04 — Аналитика → Telegram</div><div class="n8n-wf-cron">ежедневно 21:00</div></div>
+        <div class="n8n-wf-row"><div class="n8n-wf-dot on"></div><div class="n8n-wf-name">05 — Daily Report</div><div class="n8n-wf-cron">ежедневно 09:00</div></div>
+        <div class="n8n-wf-row"><div class="n8n-wf-dot on"></div><div class="n8n-wf-name">06 — AI Scoring лидов</div><div class="n8n-wf-cron">каждые 15 мин</div></div>
+        <div class="n8n-wf-row"><div class="n8n-wf-dot on"></div><div class="n8n-wf-name">08 — Автопубликация</div><div class="n8n-wf-cron">раз в 2 дня 10:00</div></div>
+        <div class="n8n-wf-row"><div class="n8n-wf-dot on"></div><div class="n8n-wf-name">09 — Мониторинг и автоответы</div><div class="n8n-wf-cron">каждые 60 мин</div></div>
+        <div class="n8n-wf-row"><div class="n8n-wf-dot on"></div><div class="n8n-wf-name">10 — Недельная стратегия</div><div class="n8n-wf-cron">пн 08:00</div></div>
+        <div class="n8n-wf-row"><div class="n8n-wf-dot on"></div><div class="n8n-wf-name">12 — Ежемесячный отчёт</div><div class="n8n-wf-cron">1-е число 09:00</div></div>
+        <div class="n8n-wf-row"><div class="n8n-wf-dot on"></div><div class="n8n-wf-name">13 — Рекламные тесты</div><div class="n8n-wf-cron">пн 08:00</div></div>
+        <div class="n8n-wf-row"><div class="n8n-wf-dot on"></div><div class="n8n-wf-name">14 — Возврат холодных лидов</div><div class="n8n-wf-cron">ежедневно 14:00</div></div>
+      </div>
+
+      <div style="font-size:.6rem;font-weight:700;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px">🔗 Webhook</div>
+      <div style="display:grid;gap:5px;margin-bottom:12px">
+        <div class="n8n-wf-row"><div class="n8n-wf-dot on"></div><div class="n8n-wf-name">01 — Telegram Parser → CRM</div><div class="n8n-wf-cron">/tg-parser</div></div>
+        <div class="n8n-wf-row"><div class="n8n-wf-dot off"></div><div class="n8n-wf-name">02 — Google Drive → Vizard</div><div class="n8n-wf-cron" style="color:#FF3B5C">нет credential</div></div>
+        <div class="n8n-wf-row"><div class="n8n-wf-dot on"></div><div class="n8n-wf-name">03 — Meta Leads → CRM</div><div class="n8n-wf-cron">/meta-lead</div></div>
+        <div class="n8n-wf-row"><div class="n8n-wf-dot on"></div><div class="n8n-wf-name">07 — КП по запросу</div><div class="n8n-wf-cron">/generate-kp</div></div>
+        <div class="n8n-wf-row"><div class="n8n-wf-dot on"></div><div class="n8n-wf-name">11 — Онбординг клиента</div><div class="n8n-wf-cron">/onboard</div></div>
+        <div class="n8n-wf-row"><div class="n8n-wf-dot on"></div><div class="n8n-wf-name">15 — AI Voice Qualifier</div><div class="n8n-wf-cron">/new-lead</div></div>
+        <div class="n8n-wf-row"><div class="n8n-wf-dot on"></div><div class="n8n-wf-name">16 — Multiplatform Publisher</div><div class="n8n-wf-cron">/publish-content</div></div>
+        <div class="n8n-wf-row"><div class="n8n-wf-dot on"></div><div class="n8n-wf-name">17 — On-Demand Scorer</div><div class="n8n-wf-cron">/score</div></div>
+      </div>
+
+      <div style="display:flex;gap:8px">
+        <a href="http://localhost:5678/workflows" target="_blank" class="btn btn-ghost btn-sm" style="text-decoration:none;flex:1;justify-content:center">📋 Воркфлоу</a>
+        <a href="http://localhost:5678/executions" target="_blank" class="btn btn-ghost btn-sm" style="text-decoration:none;flex:1;justify-content:center">📊 Логи</a>
       </div>
     </div>
 
