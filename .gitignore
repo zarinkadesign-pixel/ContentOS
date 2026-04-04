@@ -8,6 +8,7 @@ __pycache__/
 *.log
 *.tmp
 pc_data/
+logs/
 venv/
 .venv/
 *.egg-info/
