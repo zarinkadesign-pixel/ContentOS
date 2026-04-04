@@ -1,5 +1,6 @@
 {
   "version": 2,
   "builds": [{"src": "contentOS_producer.html", "use": "@vercel/static"}],
-  "routes": [{"src": "/(.*)", "dest": "/contentOS_producer.html"}]
+  "routes": [{"src": "/(.*)", "dest": "/contentOS_producer.html"}],
+  "cleanUrls": true
 }
