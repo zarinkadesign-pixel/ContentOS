@@ -702,7 +702,32 @@ except Exception:
 
 # ── Main loop ─────────────────────────────────────────────────────────────────
 
+def _check_stop_signal() -> bool:
+    """Return True if UI has written stop_signal:true to the state file."""
+    try:
+        with open(STATE_FILE, encoding="utf-8") as f:
+            data = json.load(f)
+        return bool(data.get("stop_signal"))
+    except Exception:
+        return False
+
+
+def _clear_stop_signal() -> None:
+    """Remove stop_signal from the state file so next start is clean."""
+    try:
+        if not os.path.exists(STATE_FILE):
+            return
+        with open(STATE_FILE, encoding="utf-8") as f:
+            data = json.load(f)
+        data.pop("stop_signal", None)
+        with open(STATE_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
+
+
 def run_engine() -> None:
+    _clear_stop_signal()
     _restore_state()
     ENGINE_STATE["running"]    = True
     ENGINE_STATE["started_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -715,6 +740,12 @@ def run_engine() -> None:
 
     while ENGINE_STATE["running"]:
         try:
+            # Check for stop signal written by the UI
+            if _check_stop_signal():
+                log("Получен stop_signal от UI — остановка", "ENGINE")
+                ENGINE_STATE["running"] = False
+                break
+
             for name, func, interval, hour, weekday in SCHEDULE:
                 if _should_run(name, interval, hour, weekday):
                     log(f"→ Запуск: {name}", "ENGINE")
@@ -723,11 +754,19 @@ def run_engine() -> None:
                         target=_run_task_safe, args=(name, func),
                         daemon=True, name=name,
                     ).start()
-            time.sleep(60)
+
+            # Sleep 60 seconds in 1-second chunks so stop_signal is seen quickly
+            for _ in range(60):
+                time.sleep(1)
+                if not ENGINE_STATE["running"]:
+                    break
+
         except Exception as exc:
             log(f"Engine loop error: {exc}", "ERROR")
-            time.sleep(60)
+            time.sleep(10)
 
+    ENGINE_STATE["running"] = False
+    save_state()
     log("ENGINE STOPPED", "ENGINE")
 
 

@@ -1352,14 +1352,25 @@ class MonitorScreen(ctk.CTkFrame):
 
     def _start_engine(self):
         import subprocess
-        py = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                          "python_embedded", "python.exe")
+        py = os.path.join(BASE, "python_embedded", "python.exe")
         if not os.path.exists(py):
             py = "python"
-        eng = os.path.join(os.path.dirname(os.path.abspath(__file__)), "engine.py")
+        eng = os.path.join(BASE, "engine.py")
+        # Clear any leftover stop_signal so engine starts cleanly
+        try:
+            sf = self._STATE_FILE
+            if os.path.exists(sf):
+                with open(sf, encoding="utf-8") as f:
+                    st = json.load(f)
+                st.pop("stop_signal", None)
+                with open(sf, "w", encoding="utf-8") as f:
+                    json.dump(st, f, ensure_ascii=False, indent=2)
+        except Exception:
+            pass
         try:
             flags = getattr(subprocess, "CREATE_NEW_CONSOLE", 0)
-            self._engine_proc = subprocess.Popen([py, eng], creationflags=flags)
+            self._engine_proc = subprocess.Popen(
+                [py, eng], cwd=BASE, creationflags=flags)
             self._btn_start.configure(state="disabled")
             self._btn_stop.configure(state="normal")
             self._status_lbl.configure(text="🟢 ENGINE РАБОТАЕТ", text_color=GREEN)
@@ -1367,6 +1378,21 @@ class MonitorScreen(ctk.CTkFrame):
             self._status_lbl.configure(text=f"❌ Ошибка: {exc}", text_color=RED)
 
     def _stop_engine(self):
+        # Write stop_signal to JSON — works even if engine was started externally
+        try:
+            sf = self._STATE_FILE
+            if os.path.exists(sf):
+                with open(sf, encoding="utf-8") as f:
+                    st = json.load(f)
+            else:
+                st = {}
+            st["stop_signal"] = True
+            os.makedirs(os.path.dirname(sf), exist_ok=True)
+            with open(sf, "w", encoding="utf-8") as f:
+                json.dump(st, f, ensure_ascii=False, indent=2)
+        except Exception:
+            pass
+        # Also terminate if we launched it ourselves
         if self._engine_proc:
             try:
                 self._engine_proc.terminate()
@@ -1444,11 +1470,11 @@ class MonitorScreen(ctk.CTkFrame):
     def _schedule_refresh(self):
         try:
             if not self.winfo_exists():
-                return
+                return   # widget destroyed — stop the loop
             self._refresh()
+            self.after(3000, self._schedule_refresh)
         except Exception:
-            pass
-        self.after(3000, self._schedule_refresh)
+            pass   # widget gone or other error — loop stops cleanly
 
     def _refresh(self):
         try:
@@ -1463,7 +1489,7 @@ class MonitorScreen(ctk.CTkFrame):
         # ── Status / uptime ───────────────────────────────────────────────────
         running = state.get("running", False)
         started = state.get("started_at", "")
-        if running and started:
+        if running and started and not state.get("stop_signal"):
             try:
                 st    = datetime.strptime(started, "%Y-%m-%d %H:%M:%S")
                 delta = datetime.now() - st
@@ -1473,14 +1499,16 @@ class MonitorScreen(ctk.CTkFrame):
                     text=f"с {started[11:16]}  |  {h}ч {m}м")
                 self._status_lbl.configure(
                     text="🟢 РАБОТАЕТ", text_color=GREEN)
-                if self._engine_proc is None:
-                    self._btn_start.configure(state="disabled")
-                    self._btn_stop.configure(state="normal")
+                # Sync buttons whether engine was launched by us or externally
+                self._btn_start.configure(state="disabled")
+                self._btn_stop.configure(state="normal")
             except Exception:
                 pass
         else:
             self._uptime_lbl.configure(text="")
             self._status_lbl.configure(text="⏸ ОСТАНОВЛЕН", text_color=ORANGE)
+            self._btn_start.configure(state="normal")
+            self._btn_stop.configure(state="disabled")
 
         # ── Agents ────────────────────────────────────────────────────────────
         for w in self._agents_frame.winfo_children():
