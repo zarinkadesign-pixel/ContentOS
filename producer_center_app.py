@@ -207,6 +207,7 @@ class ProducerCenter(ctk.CTk):
             "products":  ProductsScreen,
             "content":   ContentScreen,
             "finance":   FinanceScreen,
+            "producer":  ProducerScreen,
         }
         # Profile is special
         if name == "profile" and self._active_client:
@@ -233,6 +234,7 @@ class Sidebar(ctk.CTkFrame):
         ("products","📦","Продукты"),
         ("content","🎬","Контент"),
         ("finance","💰","Финансы"),
+        ("producer","🏭","Продюсер"),
     ]
     def __init__(self, master, navigate):
         super().__init__(master, width=210, fg_color=NAV, corner_radius=0)
@@ -1551,6 +1553,160 @@ class MonitorScreen(ctk.CTkFrame):
             ctk.CTkLabel(r, text=str(stats.get(key, 0)),
                          font=("Inter", 11, "bold"), text_color=ACCENT
                          ).pack(side="right")
+
+
+# ═══════════════════════════════════════
+#  PRODUCER CENTER (embedded sub-app)
+# ═══════════════════════════════════════
+class ProducerScreen(ctk.CTkFrame):
+    """
+    Embeds the full producer_center sub-application as a tab.
+    Left: vertical mini-sidebar with all 8 PC screens.
+    Right: lazy-loaded screen from producer_center/ui/.
+    """
+    _PC_DIR = os.path.join(BASE, "producer_center")
+
+    _TABS = [
+        ("dashboard", "📊", "Дашборд"),
+        ("crm",       "🔍", "CRM"),
+        ("clients",   "👥", "Клиенты"),
+        ("products",  "📦", "Продукты"),
+        ("content",   "🎬", "Визард"),
+        ("finance",   "💰", "Финансы"),
+        ("agents",    "🤖", "AI Агенты"),
+        ("calls",     "📞", "Созвоны"),
+    ]
+
+    def __init__(self, master, app):
+        super().__init__(master, fg_color=BG, corner_radius=0)
+        self.app = app
+        self._active_client_id = None
+        self._screens: dict = {}
+        self._active_tab = None
+        self._tab_btns: dict = {}
+
+        # Inject producer_center into sys.path so its imports work
+        if self._PC_DIR not in sys.path:
+            sys.path.insert(0, self._PC_DIR)
+
+        # ── init producer_center data ──────────────────────────────────────
+        self._ensure_pc_data()
+
+        self._build()
+        self._switch("dashboard")
+
+    # ── data init ──────────────────────────────────────────────────────────
+    def _ensure_pc_data(self):
+        try:
+            from core.store import create_demo_data
+            create_demo_data()
+        except Exception:
+            pass
+
+    # ── layout ─────────────────────────────────────────────────────────────
+    def _build(self):
+        # Header bar
+        hdr = ctk.CTkFrame(self, fg_color=NAV, corner_radius=0, height=56)
+        hdr.pack(fill="x")
+        hdr.pack_propagate(False)
+        label(hdr, "🏭  Продюсерский центр", 18, bold=True).pack(side="left", padx=20, pady=14)
+        label(hdr, "producer_center/", 11, TEXT2).pack(side="right", padx=16, pady=14)
+
+        # Body: mini-sidebar + content
+        body = ctk.CTkFrame(self, fg_color=BG, corner_radius=0)
+        body.pack(fill="both", expand=True)
+
+        # Mini-sidebar (narrower than main)
+        self._mini_nav = ctk.CTkFrame(body, width=170, fg_color=NAV, corner_radius=0)
+        self._mini_nav.pack(side="left", fill="y")
+        self._mini_nav.pack_propagate(False)
+        self._build_mini_nav()
+
+        # Content area
+        self._content = ctk.CTkFrame(body, fg_color=BG, corner_radius=0)
+        self._content.pack(side="left", fill="both", expand=True)
+
+    def _build_mini_nav(self):
+        ctk.CTkFrame(self._mini_nav, height=8, fg_color="transparent").pack()
+        for key, icon, lbl_text in self._TABS:
+            b = ctk.CTkButton(
+                self._mini_nav,
+                text=f"  {icon}  {lbl_text}",
+                font=("Inter", 12, "bold"), anchor="w",
+                fg_color="transparent", hover_color=BORDER,
+                text_color=TEXT2, height=38, corner_radius=10,
+                command=lambda k=key: self._switch(k),
+            )
+            b.pack(fill="x", padx=6, pady=1)
+            self._tab_btns[key] = b
+
+        ctk.CTkFrame(self._mini_nav, height=1, fg_color=BORDER).pack(fill="x", padx=10, pady=6)
+        label(self._mini_nav, "producer_center/ui", 9, TEXT3).pack(anchor="w", padx=14)
+
+    # ── navigation ─────────────────────────────────────────────────────────
+    def _switch(self, name: str):
+        # highlight tab
+        for k, b in self._tab_btns.items():
+            b.configure(fg_color="#1a1f4e" if k == name else "transparent",
+                        text_color=ACCENT2 if k == name else TEXT2)
+        self._active_tab = name
+
+        # clear content
+        for w in self._content.winfo_children():
+            w.destroy()
+
+        # load screen (lazy import from producer_center/ui)
+        try:
+            sc = self._load_pc_screen(name)
+            if sc is not None:
+                if hasattr(sc, "refresh"):
+                    sc.refresh()
+                sc.pack(fill="both", expand=True)
+        except Exception as exc:
+            err = ctk.CTkFrame(self._content, fg_color=BG, corner_radius=0)
+            err.pack(fill="both", expand=True)
+            label(err, f"⚠️ Ошибка загрузки: {exc}", 13, RED).pack(pady=40, padx=20)
+
+    def _load_pc_screen(self, name: str):
+        if name == "dashboard":
+            from ui.dashboard import DashboardScreen as DS
+            return DS(self._content, self)
+        elif name == "crm":
+            from ui.crm import CRMScreen as CS
+            return CS(self._content, self)
+        elif name == "clients":
+            from ui.clients import ClientsScreen as CLS
+            return CLS(self._content, self)
+        elif name == "profile":
+            from ui.client_profile import ClientProfileScreen as CPS
+            return CPS(self._content, self)
+        elif name == "products":
+            from ui.products import ProductsScreen as PS
+            return PS(self._content, self)
+        elif name == "content":
+            from ui.vizard_pipeline import VizardScreen as VS
+            return VS(self._content, self)
+        elif name == "finance":
+            from ui.finance import FinanceScreen as FS
+            return FS(self._content, self)
+        elif name == "agents":
+            from ui.agents import AgentsScreen as AS
+            return AS(self._content, self)
+        elif name == "calls":
+            from ui.calls import CallsScreen as CS2
+            return CS2(self._content, self)
+        return None
+
+    # ── proxy API expected by producer_center screens ───────────────────────
+    def show_screen(self, name: str):
+        self._switch(name)
+
+    def open_client(self, client_id: int):
+        self._active_client_id = client_id
+        self._switch("profile")
+
+    def get_active_client_id(self):
+        return self._active_client_id
 
 
 # ═══════════════════════════════════════
