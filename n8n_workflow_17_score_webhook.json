@@ -1,0 +1,129 @@
+{
+  "name": "17 — On-Demand Lead Scorer",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "score",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-score-001",
+      "name": "Webhook — /score",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "score-on-demand-001"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=YOUR_GEMINI_KEY",
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"contents\": [{\n    \"role\": \"user\",\n    \"parts\": [{\n      \"text\": \"Оцени лид для продюсерского центра AMAImedia (эксперты, наставничество, онлайн-школы).\\n\\nЛид:\\nИмя: {{ $json.name }}\\nНиша: {{ $json.niche }}\\nИсточник: {{ $json.source }}\\nЗаметки: {{ $json.notes }}\\n\\nОтветь СТРОГО в формате (3 строки, без лишнего текста):\\nSCORE: <число 0-100>\\nПРИЧИНА: <одно предложение почему>\\nПРОДУКТ: <один продукт из списка: наставничество / онлайн-курс / консультация / продюсирование>\"\n    }]\n  }],\n  \"generationConfig\": {\"maxOutputTokens\": 150, \"temperature\": 0.3}\n}"
+      },
+      "id": "gemini-score",
+      "name": "Gemini — скоринг",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.item.json.candidates[0].content.parts[0].text.trim();\nconst webhook = $('Webhook — /score').item.json;\n\nlet score = 0, reason = '', product = 'наставничество';\n\nfor (const line of raw.split('\\n')) {\n  const l = line.trim();\n  if (l.startsWith('SCORE:')) {\n    const n = parseInt(l.split(':', 1)[1] || l.replace('SCORE:', '').trim());\n    if (!isNaN(n)) score = Math.max(0, Math.min(100, n));\n  } else if (l.startsWith('ПРИЧИНА:')) {\n    reason = l.split(':', 1)[1]?.trim() || l.replace('ПРИЧИНА:', '').trim();\n  } else if (l.startsWith('ПРОДУКТ:')) {\n    product = l.split(':', 1)[1]?.trim() || l.replace('ПРОДУКТ:', '').trim();\n  }\n}\n\nreturn [{\n  json: {\n    lead_id: webhook.lead_id || null,\n    name: webhook.name || '',\n    niche: webhook.niche || '',\n    score,\n    reason,\n    product,\n    hot: score >= 80,\n    contact: webhook.contact || '',\n    raw_response: raw\n  }\n}];"
+      },
+      "id": "parse-score",
+      "name": "Парсинг — SCORE/ПРИЧИНА/ПРОДУКТ",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [720, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.score }}",
+              "operation": "largerEqual",
+              "value2": 80
+            }
+          ]
+        }
+      },
+      "id": "if-hot",
+      "name": "Если горячий (≥80)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [960, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/botYOUR_BOT_TOKEN/sendMessage",
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"chat_id\": \"YOUR_CHAT_ID\",\n  \"text\": \"🔥 <b>ГОРЯЧИЙ ЛИД!</b>\\n\\nИмя: {{ $json.name }}\\nНиша: {{ $json.niche }}\\nОценка: <b>{{ $json.score }}/100</b>\\nПродукт: {{ $json.product }}\\nПричина: {{ $json.reason }}\\n\\nКонтакт: {{ $json.contact }}\\n\\n📅 <a href=\\\"https://calendly.com/amaimedia/30min\\\">Записать на встречу</a>\",\n  \"parse_mode\": \"HTML\"\n}"
+      },
+      "id": "tg-hot-alert",
+      "name": "Telegram — горячий лид Зарине",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1200, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'ok', score: $('Парсинг — SCORE/ПРИЧИНА/ПРОДУКТ').item.json.score, reason: $('Парсинг — SCORE/ПРИЧИНА/ПРОДУКТ').item.json.reason, product: $('Парсинг — SCORE/ПРИЧИНА/ПРОДУКТ').item.json.product, hot: $('Парсинг — SCORE/ПРИЧИНА/ПРОДУКТ').item.json.hot, lead_id: $('Парсинг — SCORE/ПРИЧИНА/ПРОДУКТ').item.json.lead_id }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "respond-hot",
+      "name": "Ответ — горячий",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1440, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'ok', score: $('Парсинг — SCORE/ПРИЧИНА/ПРОДУКТ').item.json.score, reason: $('Парсинг — SCORE/ПРИЧИНА/ПРОДУКТ').item.json.reason, product: $('Парсинг — SCORE/ПРИЧИНА/ПРОДУКТ').item.json.product, hot: false, lead_id: $('Парсинг — SCORE/ПРИЧИНА/ПРОДУКТ').item.json.lead_id }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "respond-cold",
+      "name": "Ответ — холодный",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1200, 400]
+    }
+  ],
+  "connections": {
+    "Webhook — /score": {
+      "main": [[{"node": "Gemini — скоринг", "type": "main", "index": 0}]]
+    },
+    "Gemini — скоринг": {
+      "main": [[{"node": "Парсинг — SCORE/ПРИЧИНА/ПРОДУКТ", "type": "main", "index": 0}]]
+    },
+    "Парсинг — SCORE/ПРИЧИНА/ПРОДУКТ": {
+      "main": [[{"node": "Если горячий (≥80)", "type": "main", "index": 0}]]
+    },
+    "Если горячий (≥80)": {
+      "main": [
+        [{"node": "Telegram — горячий лид Зарине", "type": "main", "index": 0}],
+        [{"node": "Ответ — холодный", "type": "main", "index": 0}]
+      ]
+    },
+    "Telegram — горячий лид Зарине": {
+      "main": [[{"node": "Ответ — горячий", "type": "main", "index": 0}]]
+    }
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "meta": {
+    "description": "Workflow 17 — On-demand lead scoring via POST /webhook/score. Calls Gemini with SCORE/ПРИЧИНА/ПРОДУКТ format, returns JSON result, sends hot-lead alert to Zarina if score ≥ 80.",
+    "version": "1.0"
+  }
+}
