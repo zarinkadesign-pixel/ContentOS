@@ -33,7 +33,8 @@ const NAV_SECTIONS = [
   {
     title: "Контент",
     items: [
-      { href: "/admin/clips", label: "Clips Studio", icon: "✂️" },
+      { href: "/admin/clips",     label: "Clips Studio", icon: "✂️" },
+      { href: "/admin/scheduler", label: "Автопостинг",  icon: "📅" },
       { href: "/studio",    label: "Студия",    icon: "🎬" },
       { href: "/content",   label: "Контент",   icon: "📹" },
       { href: "/generate",  label: "Генерация", icon: "✨" },
