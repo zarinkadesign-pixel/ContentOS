@@ -33,9 +33,11 @@ const NAV_SECTIONS = [
   {
     title: "Контент",
     items: [
-      { href: "/admin/clips",     label: "Clips Studio", icon: "✂️" },
-      { href: "/admin/scheduler", label: "Автопостинг",  icon: "📅" },
-      { href: "/studio",    label: "Студия",    icon: "🎬" },
+      { href: "/admin/clips",        label: "Clips Studio",   icon: "✂️" },
+      { href: "/admin/scheduler",    label: "Автопостинг",    icon: "📅" },
+      { href: "/admin/producer",     label: "Producer v8",    icon: "🎬" },
+      { href: "/admin/claude-guide", label: "Claude Guides",  icon: "📚" },
+      { href: "/studio",    label: "Студия",    icon: "🎞️" },
       { href: "/content",   label: "Контент",   icon: "📹" },
       { href: "/generate",  label: "Генерация", icon: "✨" },
       { href: "/scheduler", label: "Постинг",   icon: "📅" },
