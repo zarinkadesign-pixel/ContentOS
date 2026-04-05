@@ -7,7 +7,7 @@
  */
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef } from "react";
 
 // ─────────────────────────────────────────────────────────── TYPES ──
 interface SlideData {
@@ -25,126 +25,6 @@ interface CarouselResult {
   hashtags: string[];
   theme: string;
   brand: string;
-}
-
-// ──────────────────────────────────────────────── CANVAS THEMES ──
-const CANVAS_THEMES = {
-  dark:   { bg1: "#030412", bg2: "#1a1b3e", text: "#ffffff", accent: "#818cf8", sub: "rgba(255,255,255,0.6)",  dot: "rgba(255,255,255,0.25)" },
-  light:  { bg1: "#f0f4ff", bg2: "#e8eeff", text: "#1e1b4b", accent: "#6366f1", sub: "rgba(30,27,75,0.55)",   dot: "rgba(99,102,241,0.3)"  },
-  purple: { bg1: "#4f46e5", bg2: "#7c3aed", text: "#ffffff", accent: "#fbbf24", sub: "rgba(255,255,255,0.75)", dot: "rgba(255,255,255,0.35)" },
-  gold:   { bg1: "#1c1917", bg2: "#292524", text: "#fef3c7", accent: "#f59e0b", sub: "rgba(254,243,199,0.65)", dot: "rgba(245,158,11,0.4)"  },
-  rose:   { bg1: "#1f0a14", bg2: "#3b0a24", text: "#fce7f3", accent: "#f472b6", sub: "rgba(252,231,243,0.65)", dot: "rgba(244,114,182,0.35)"},
-};
-
-// ──────────────────────────────────────────────── CANVAS DRAW ──
-function wrapText(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, maxW: number, lh: number, align: CanvasTextAlign = "center"): number {
-  ctx.textAlign = align;
-  const words = text.split(" ");
-  let line = "";
-  let cy = y;
-  for (const w of words) {
-    const test = line + w + " ";
-    if (ctx.measureText(test).width > maxW && line !== "") {
-      ctx.fillText(line.trim(), x, cy);
-      line = w + " ";
-      cy += lh;
-    } else { line = test; }
-  }
-  if (line.trim()) { ctx.fillText(line.trim(), x, cy); cy += lh; }
-  return cy;
-}
-
-function drawSlide(canvas: HTMLCanvasElement, slide: SlideData, themeKey: string, total: number, brand: string) {
-  const W = 1080, H = 1080;
-  canvas.width = W; canvas.height = H;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return;
-  const t = CANVAS_THEMES[themeKey as keyof typeof CANVAS_THEMES] ?? CANVAS_THEMES.dark;
-
-  // Background
-  const bg = ctx.createLinearGradient(0, 0, W, H);
-  bg.addColorStop(0, t.bg1); bg.addColorStop(1, t.bg2);
-  ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
-
-  // Decorative circles
-  ctx.beginPath(); ctx.arc(W * 0.88, H * 0.12, 200, 0, Math.PI * 2);
-  ctx.fillStyle = t.accent + "18"; ctx.fill();
-  ctx.beginPath(); ctx.arc(W * 0.12, H * 0.88, 140, 0, Math.PI * 2);
-  ctx.fillStyle = t.accent + "10"; ctx.fill();
-
-  // Top accent line
-  const accentLine = ctx.createLinearGradient(0, 0, W, 0);
-  accentLine.addColorStop(0, t.accent + "00");
-  accentLine.addColorStop(0.5, t.accent);
-  accentLine.addColorStop(1, t.accent + "00");
-  ctx.fillStyle = accentLine;
-  ctx.fillRect(0, 0, W, 4);
-
-  // Slide number
-  ctx.font = "500 30px system-ui, Arial"; ctx.fillStyle = t.sub;
-  ctx.textAlign = "right"; ctx.fillText(`${slide.index} / ${total}`, W - 56, 66);
-
-  // Brand
-  if (brand) {
-    ctx.font = "600 28px system-ui, Arial"; ctx.fillStyle = t.accent;
-    ctx.textAlign = "left"; ctx.fillText(brand, 56, 66);
-  }
-
-  let curY = 180;
-
-  // Emoji
-  if (slide.emoji) {
-    ctx.font = "110px system-ui"; ctx.textAlign = "center";
-    ctx.fillText(slide.emoji, W / 2, curY + 90); curY += 160;
-  }
-
-  // Headline
-  ctx.font = "bold 70px system-ui, Arial"; ctx.fillStyle = t.text;
-  curY = wrapText(ctx, slide.headline, W / 2, curY, W - 140, 84) + 10;
-
-  // Subtext (hook slide)
-  if (slide.subtext) {
-    ctx.font = "400 40px system-ui, Arial"; ctx.fillStyle = t.sub;
-    curY = wrapText(ctx, slide.subtext, W / 2, curY, W - 180, 54) + 20;
-  }
-
-  // CTA slide special
-  if (slide.type === "cta" && slide.cta) {
-    ctx.font = "400 40px system-ui, Arial"; ctx.fillStyle = t.sub;
-    curY = wrapText(ctx, slide.cta, W / 2, curY, W - 180, 54) + 30;
-    // CTA button shape
-    const btnW = 460, btnH = 80, btnX = (W - btnW) / 2, btnY = curY;
-    ctx.beginPath();
-    ctx.roundRect(btnX, btnY, btnW, btnH, 40);
-    ctx.fillStyle = t.accent; ctx.fill();
-    ctx.font = "bold 34px system-ui, Arial"; ctx.fillStyle = t.bg1;
-    ctx.textAlign = "center";
-    ctx.fillText("Сохранить →", W / 2, btnY + 52);
-  }
-
-  // Bullet points (content slides)
-  if (slide.points && slide.points.length > 0) {
-    const ptStartY = curY + 10;
-    slide.points.forEach((pt, i) => {
-      const py = ptStartY + i * 110;
-      // Circle bullet
-      ctx.beginPath(); ctx.arc(70, py - 10, 12, 0, Math.PI * 2);
-      ctx.fillStyle = t.accent; ctx.fill();
-      // Point text
-      ctx.font = "400 38px system-ui, Arial"; ctx.fillStyle = t.text;
-      wrapText(ctx, pt, 104, py, W - 170, 50, "left");
-    });
-  }
-
-  // Bottom progress dots
-  const spacing = 30;
-  const startX = (W - total * spacing) / 2;
-  for (let i = 0; i < total; i++) {
-    ctx.beginPath();
-    ctx.arc(startX + i * spacing + 10, H - 64, i === slide.index - 1 ? 9 : 5, 0, Math.PI * 2);
-    ctx.fillStyle = i === slide.index - 1 ? t.accent : t.dot;
-    ctx.fill();
-  }
 }
 
 // ──────────────────────────────────────────────── 60 PROMPTS DATA ──
@@ -273,25 +153,253 @@ function fillPrompt(template: string, vals: Record<string, string>): string {
   return r;
 }
 
+// ──────────────────────────────────── CSS THEME CONFIGS ──
+const CSS_THEMES: Record<string, {
+  bg: string; card: string; cardBorder: string;
+  text: string; textSub: string; accent: string; accent2: string;
+  bullet: string; numBg: string; numText: string; barTrack: string;
+}> = {
+  dark: {
+    bg: "linear-gradient(135deg, #060818 0%, #0f1035 50%, #1a1b4b 100%)",
+    card: "rgba(255,255,255,0.05)", cardBorder: "rgba(129,140,248,0.2)",
+    text: "#ffffff", textSub: "rgba(255,255,255,0.6)",
+    accent: "#818cf8", accent2: "#c4b5fd",
+    bullet: "linear-gradient(135deg,#6366f1,#8b5cf6)", numBg: "rgba(99,102,241,0.18)", numText: "#a5b4fc",
+    barTrack: "rgba(255,255,255,0.12)",
+  },
+  light: {
+    bg: "linear-gradient(135deg, #eef2ff 0%, #e8eeff 50%, #f5f3ff 100%)",
+    card: "rgba(255,255,255,0.75)", cardBorder: "rgba(99,102,241,0.2)",
+    text: "#1e1b4b", textSub: "rgba(30,27,75,0.55)",
+    accent: "#6366f1", accent2: "#8b5cf6",
+    bullet: "linear-gradient(135deg,#6366f1,#8b5cf6)", numBg: "rgba(99,102,241,0.12)", numText: "#4f46e5",
+    barTrack: "rgba(99,102,241,0.2)",
+  },
+  purple: {
+    bg: "linear-gradient(135deg, #2e1065 0%, #4c1d95 50%, #5b21b6 100%)",
+    card: "rgba(255,255,255,0.08)", cardBorder: "rgba(251,191,36,0.25)",
+    text: "#ffffff", textSub: "rgba(255,255,255,0.65)",
+    accent: "#fbbf24", accent2: "#fde68a",
+    bullet: "linear-gradient(135deg,#f59e0b,#fbbf24)", numBg: "rgba(251,191,36,0.15)", numText: "#fde68a",
+    barTrack: "rgba(255,255,255,0.15)",
+  },
+  gold: {
+    bg: "linear-gradient(135deg, #0c0a08 0%, #1c1710 50%, #241f12 100%)",
+    card: "rgba(245,158,11,0.08)", cardBorder: "rgba(245,158,11,0.22)",
+    text: "#fef3c7", textSub: "rgba(254,243,199,0.6)",
+    accent: "#f59e0b", accent2: "#fde68a",
+    bullet: "linear-gradient(135deg,#d97706,#f59e0b)", numBg: "rgba(245,158,11,0.18)", numText: "#fbbf24",
+    barTrack: "rgba(245,158,11,0.2)",
+  },
+  rose: {
+    bg: "linear-gradient(135deg, #1a0310 0%, #2d0520 50%, #3f0626 100%)",
+    card: "rgba(244,114,182,0.08)", cardBorder: "rgba(244,114,182,0.22)",
+    text: "#fce7f3", textSub: "rgba(252,231,243,0.6)",
+    accent: "#f472b6", accent2: "#fbcfe8",
+    bullet: "linear-gradient(135deg,#db2777,#f472b6)", numBg: "rgba(244,114,182,0.15)", numText: "#fbcfe8",
+    barTrack: "rgba(244,114,182,0.2)",
+  },
+};
+
+// ──────────────────────────────────── HTML SLIDE COMPONENT ──
+function SlideCard({ slide, total, themeKey, brand, onDownload }: {
+  slide: SlideData; total: number; themeKey: string; brand: string; onDownload: () => void;
+}) {
+  const t = CSS_THEMES[themeKey] ?? CSS_THEMES.dark;
+
+  return (
+    <div style={{
+      position: "relative",
+      width: "100%",
+      aspectRatio: "1/1",
+      background: t.bg,
+      borderRadius: "0",
+      overflow: "hidden",
+      display: "flex",
+      flexDirection: "column",
+      padding: "28px",
+      boxSizing: "border-box",
+    }}>
+      {/* Top accent bar */}
+      <div style={{
+        position: "absolute", top: 0, left: 0, right: 0, height: "4px",
+        background: `linear-gradient(90deg, ${t.accent}00, ${t.accent}, ${t.accent2}, ${t.accent2}00)`,
+      }} />
+
+      {/* Glow orbs */}
+      <div style={{
+        position: "absolute", top: "-60px", right: "-60px",
+        width: "260px", height: "260px", borderRadius: "50%",
+        background: `radial-gradient(circle, ${t.accent}22 0%, transparent 70%)`,
+        pointerEvents: "none",
+      }} />
+      <div style={{
+        position: "absolute", bottom: "-40px", left: "-40px",
+        width: "200px", height: "200px", borderRadius: "50%",
+        background: `radial-gradient(circle, ${t.accent}14 0%, transparent 70%)`,
+        pointerEvents: "none",
+      }} />
+
+      {/* Header row */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px", position: "relative", zIndex: 1 }}>
+        {brand ? (
+          <div style={{
+            padding: "5px 14px", borderRadius: "20px",
+            background: t.card, border: `1px solid ${t.cardBorder}`,
+            color: t.accent, fontSize: "12px", fontWeight: 700, letterSpacing: "0.04em",
+          }}>{brand}</div>
+        ) : <div />}
+        <div style={{
+          padding: "5px 14px", borderRadius: "20px",
+          background: t.card, border: `1px solid ${t.cardBorder}`,
+          color: t.textSub, fontSize: "12px", fontWeight: 600,
+        }}>{slide.index} / {total}</div>
+      </div>
+
+      {/* Content */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", position: "relative", zIndex: 1, gap: "14px" }}>
+        {slide.type === "hook" && (
+          <>
+            <div style={{ textAlign: "center", fontSize: "56px", lineHeight: 1, marginBottom: "4px" }}>{slide.emoji}</div>
+            <h2 style={{
+              margin: 0, textAlign: "center", fontWeight: 900, lineHeight: 1.15,
+              fontSize: "clamp(18px, 3.5vw, 28px)",
+              background: `linear-gradient(135deg, ${t.text}, ${t.accent2})`,
+              WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
+            }}>{slide.headline}</h2>
+            {slide.subtext && (
+              <div style={{
+                margin: "4px 0 0",
+                padding: "14px 18px",
+                background: t.card,
+                border: `1px solid ${t.cardBorder}`,
+                borderRadius: "14px",
+                textAlign: "center",
+                color: t.textSub,
+                fontSize: "13px",
+                lineHeight: 1.6,
+                backdropFilter: "blur(8px)",
+              }}>{slide.subtext}</div>
+            )}
+          </>
+        )}
+
+        {slide.type === "content" && (
+          <>
+            <div style={{
+              display: "flex", alignItems: "center", gap: "10px", marginBottom: "4px",
+            }}>
+              <span style={{ fontSize: "26px" }}>{slide.emoji}</span>
+              <h2 style={{
+                margin: 0, fontWeight: 800, lineHeight: 1.2,
+                fontSize: "clamp(14px, 2.8vw, 20px)",
+                background: `linear-gradient(135deg, ${t.text}, ${t.accent2})`,
+                WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
+              }}>{slide.headline}</h2>
+            </div>
+            <div style={{
+              width: "50px", height: "3px", borderRadius: "2px",
+              background: `linear-gradient(90deg, ${t.accent}, ${t.accent2})`,
+              marginBottom: "4px",
+            }} />
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              {(slide.points ?? []).slice(0, 3).map((pt, idx) => (
+                <div key={idx} style={{
+                  display: "flex", alignItems: "flex-start", gap: "12px",
+                  padding: "12px 14px",
+                  background: t.card,
+                  border: `1px solid ${t.cardBorder}`,
+                  borderRadius: "12px",
+                  backdropFilter: "blur(8px)",
+                  position: "relative",
+                  overflow: "hidden",
+                }}>
+                  {/* Left accent bar */}
+                  <div style={{
+                    position: "absolute", left: 0, top: 0, bottom: 0, width: "3px",
+                    background: t.bullet, borderRadius: "3px 0 0 3px",
+                  }} />
+                  {/* Number badge */}
+                  <div style={{
+                    width: "26px", height: "26px", minWidth: "26px",
+                    borderRadius: "50%",
+                    background: t.numBg,
+                    border: `1px solid ${t.accent}40`,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    color: t.numText, fontSize: "12px", fontWeight: 800,
+                  }}>{idx + 1}</div>
+                  <span style={{ color: t.text, fontSize: "13px", lineHeight: 1.55, paddingLeft: "4px" }}>{pt}</span>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        {slide.type === "cta" && (
+          <>
+            <div style={{ textAlign: "center", fontSize: "52px", lineHeight: 1 }}>{slide.emoji}</div>
+            <h2 style={{
+              margin: 0, textAlign: "center", fontWeight: 900, lineHeight: 1.2,
+              fontSize: "clamp(16px, 3.2vw, 24px)",
+              background: `linear-gradient(135deg, ${t.text}, ${t.accent2})`,
+              WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
+            }}>{slide.headline}</h2>
+            {slide.cta && (
+              <p style={{ margin: 0, textAlign: "center", color: t.textSub, fontSize: "13px", lineHeight: 1.6 }}>{slide.cta}</p>
+            )}
+            <div style={{
+              marginTop: "8px",
+              padding: "14px 24px",
+              background: t.bullet,
+              borderRadius: "50px",
+              textAlign: "center",
+              color: "#fff",
+              fontWeight: 800,
+              fontSize: "14px",
+              boxShadow: `0 8px 24px ${t.accent}40`,
+            }}>Сохранить в закладки →</div>
+          </>
+        )}
+      </div>
+
+      {/* Progress bar */}
+      <div style={{ position: "relative", zIndex: 1, marginTop: "16px" }}>
+        <div style={{ height: "4px", borderRadius: "2px", background: t.barTrack, position: "relative" }}>
+          <div style={{
+            position: "absolute", left: 0, top: 0, height: "100%",
+            width: `${(slide.index / total) * 100}%`,
+            background: `linear-gradient(90deg, ${t.accent}, ${t.accent2})`,
+            borderRadius: "2px",
+            transition: "width 0.3s ease",
+          }} />
+        </div>
+        <div style={{ display: "flex", justifyContent: "center", gap: "8px", marginTop: "8px" }}>
+          {Array.from({ length: total }, (_, i) => (
+            <div key={i} style={{
+              width: i === slide.index - 1 ? "20px" : "6px",
+              height: "6px",
+              borderRadius: "3px",
+              background: i === slide.index - 1 ? t.accent : t.barTrack,
+              transition: "all 0.3s ease",
+            }} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ──────────────────────────────────────────── CAROUSEL SECTION ──
 function CarouselCreator() {
-  const [topic, setTopic]       = useState("");
-  const [niche, setNiche]       = useState("");
-  const [brand, setBrand]       = useState("");
-  const [numSlides, setNum]     = useState(6);
-  const [theme, setTheme]       = useState("dark");
-  const [loading, setLoading]   = useState(false);
-  const [result, setResult]     = useState<CarouselResult | null>(null);
-  const [error, setError]       = useState("");
-  const canvasRefs = useRef<(HTMLCanvasElement | null)[]>([]);
-
-  useEffect(() => {
-    if (!result?.slides?.length) return;
-    result.slides.forEach((slide, i) => {
-      const canvas = canvasRefs.current[i];
-      if (canvas) drawSlide(canvas, slide, theme, result.slides.length, brand);
-    });
-  }, [result, theme, brand]);
+  const [topic, setTopic]     = useState("");
+  const [niche, setNiche]     = useState("");
+  const [brand, setBrand]     = useState("");
+  const [numSlides, setNum]   = useState(6);
+  const [theme, setTheme]     = useState("dark");
+  const [loading, setLoading] = useState(false);
+  const [result, setResult]   = useState<CarouselResult | null>(null);
+  const [error, setError]     = useState("");
+  const slideRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   async function generate() {
     if (!topic.trim()) { setError("Введи тему карусели"); return; }
@@ -312,9 +420,11 @@ function CarouselCreator() {
     }
   }
 
-  function downloadSlide(idx: number) {
-    const canvas = canvasRefs.current[idx];
-    if (!canvas) return;
+  async function downloadSlide(idx: number) {
+    const el = slideRefs.current[idx];
+    if (!el) return;
+    const h2c = (await import("html2canvas")).default;
+    const canvas = await h2c(el, { scale: 3, useCORS: true, backgroundColor: null, logging: false });
     canvas.toBlob(blob => {
       if (!blob) return;
       const a = document.createElement("a");
@@ -324,87 +434,78 @@ function CarouselCreator() {
     }, "image/png");
   }
 
-  function downloadAll() {
-    result?.slides.forEach((_, i) => {
-      setTimeout(() => downloadSlide(i), i * 300);
-    });
+  async function downloadAll() {
+    if (!result) return;
+    for (let i = 0; i < result.slides.length; i++) {
+      await downloadSlide(i);
+      await new Promise(r => setTimeout(r, 400));
+    }
   }
 
   const THEMES_UI = [
-    { id: "dark",   label: "Dark",   color: "#030412" },
-    { id: "light",  label: "Light",  color: "#eef2ff" },
-    { id: "purple", label: "Purple", color: "#6d28d9" },
-    { id: "gold",   label: "Gold",   color: "#92400e" },
-    { id: "rose",   label: "Rose",   color: "#9f1239" },
+    { id: "dark",   label: "Dark",   color: "#060818", ring: "#818cf8" },
+    { id: "light",  label: "Light",  color: "#c7d2fe", ring: "#6366f1" },
+    { id: "purple", label: "Purple", color: "#4c1d95", ring: "#fbbf24" },
+    { id: "gold",   label: "Gold",   color: "#1c1710", ring: "#f59e0b" },
+    { id: "rose",   label: "Rose",   color: "#3f0626", ring: "#f472b6" },
   ];
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-      {/* Form */}
+      {/* Form card */}
       <div style={{
         background: "rgba(255,255,255,0.03)",
         border: "1px solid rgba(99,102,241,0.15)",
-        borderRadius: "16px",
-        padding: "24px",
+        borderRadius: "20px",
+        padding: "28px",
         display: "flex",
         flexDirection: "column",
-        gap: "20px",
+        gap: "22px",
       }}>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "16px" }}>
-          <div>
-            <label style={{ display: "block", fontSize: "11px", color: "rgba(255,255,255,0.4)", marginBottom: "6px", letterSpacing: "0.08em", textTransform: "uppercase" }}>Тема карусели *</label>
-            <input
-              value={topic}
-              onChange={e => setTopic(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && generate()}
-              placeholder="Напр: 5 ошибок начинающих блогеров"
-              style={{ width: "100%", padding: "10px 14px", borderRadius: "10px", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", fontSize: "14px", outline: "none" }}
-            />
-          </div>
-          <div>
-            <label style={{ display: "block", fontSize: "11px", color: "rgba(255,255,255,0.4)", marginBottom: "6px", letterSpacing: "0.08em", textTransform: "uppercase" }}>Ниша</label>
-            <input
-              value={niche}
-              onChange={e => setNiche(e.target.value)}
-              placeholder="Напр: Контент-маркетинг"
-              style={{ width: "100%", padding: "10px 14px", borderRadius: "10px", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", fontSize: "14px", outline: "none" }}
-            />
-          </div>
-          <div>
-            <label style={{ display: "block", fontSize: "11px", color: "rgba(255,255,255,0.4)", marginBottom: "6px", letterSpacing: "0.08em", textTransform: "uppercase" }}>Бренд / аккаунт</label>
-            <input
-              value={brand}
-              onChange={e => setBrand(e.target.value)}
-              placeholder="Напр: @myaccount"
-              style={{ width: "100%", padding: "10px 14px", borderRadius: "10px", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", fontSize: "14px", outline: "none" }}
-            />
-          </div>
+          {[
+            { label: "Тема карусели *", val: topic, set: setTopic, ph: "Напр: 5 ошибок начинающих блогеров", enter: true },
+            { label: "Ниша", val: niche, set: setNiche, ph: "Напр: Контент-маркетинг" },
+            { label: "Бренд / аккаунт", val: brand, set: setBrand, ph: "Напр: @myaccount" },
+          ].map(({ label, val, set, ph, enter }) => (
+            <div key={label}>
+              <label style={{ display: "block", fontSize: "10px", color: "rgba(255,255,255,0.35)", marginBottom: "7px", letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 600 }}>{label}</label>
+              <input
+                value={val} onChange={e => set(e.target.value)}
+                onKeyDown={enter ? (e => e.key === "Enter" && generate()) : undefined}
+                placeholder={ph}
+                style={{ width: "100%", padding: "11px 14px", borderRadius: "12px", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", fontSize: "14px", outline: "none", boxSizing: "border-box" }}
+              />
+            </div>
+          ))}
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: "32px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "32px", flexWrap: "wrap" }}>
           <div>
-            <label style={{ display: "block", fontSize: "11px", color: "rgba(255,255,255,0.4)", marginBottom: "8px", letterSpacing: "0.08em", textTransform: "uppercase" }}>Слайдов</label>
+            <label style={{ display: "block", fontSize: "10px", color: "rgba(255,255,255,0.35)", marginBottom: "9px", letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 600 }}>Слайдов</label>
             <div style={{ display: "flex", gap: "6px" }}>
               {[4, 5, 6, 7, 8, 10].map(n => (
                 <button key={n} onClick={() => setNum(n)} style={{
-                  width: "40px", height: "36px", borderRadius: "8px", fontSize: "13px", fontWeight: 600,
+                  width: "42px", height: "38px", borderRadius: "10px", fontSize: "14px", fontWeight: 700,
                   background: numSlides === n ? "linear-gradient(135deg, #6366f1, #8b5cf6)" : "rgba(255,255,255,0.05)",
                   border: numSlides === n ? "none" : "1px solid rgba(255,255,255,0.08)",
                   color: numSlides === n ? "#fff" : "rgba(255,255,255,0.45)", cursor: "pointer",
+                  boxShadow: numSlides === n ? "0 4px 12px rgba(99,102,241,0.4)" : "none",
                 }}>{n}</button>
               ))}
             </div>
           </div>
           <div>
-            <label style={{ display: "block", fontSize: "11px", color: "rgba(255,255,255,0.4)", marginBottom: "8px", letterSpacing: "0.08em", textTransform: "uppercase" }}>Тема оформления</label>
-            <div style={{ display: "flex", gap: "8px" }}>
+            <label style={{ display: "block", fontSize: "10px", color: "rgba(255,255,255,0.35)", marginBottom: "9px", letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 600 }}>Тема оформления</label>
+            <div style={{ display: "flex", gap: "10px" }}>
               {THEMES_UI.map(th => (
                 <button key={th.id} onClick={() => setTheme(th.id)} title={th.label} style={{
-                  width: "32px", height: "32px", borderRadius: "50%",
+                  width: "36px", height: "36px", borderRadius: "50%",
                   background: th.color,
-                  border: theme === th.id ? "2px solid #818cf8" : "2px solid transparent",
+                  border: theme === th.id ? `3px solid ${th.ring}` : "2px solid rgba(255,255,255,0.15)",
                   cursor: "pointer",
-                  boxShadow: theme === th.id ? "0 0 0 2px rgba(129,140,248,0.4)" : "none",
+                  boxShadow: theme === th.id ? `0 0 0 2px ${th.ring}55` : "none",
+                  transition: "all 0.2s ease",
                 }} />
               ))}
             </div>
@@ -414,59 +515,60 @@ function CarouselCreator() {
             disabled={loading}
             style={{
               marginLeft: "auto",
-              padding: "11px 28px",
-              borderRadius: "12px",
+              padding: "12px 32px",
+              borderRadius: "14px",
               background: loading ? "rgba(99,102,241,0.3)" : "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)",
-              border: "none", color: "#fff", fontSize: "14px", fontWeight: 700,
+              border: "none", color: "#fff", fontSize: "15px", fontWeight: 700,
               cursor: loading ? "not-allowed" : "pointer",
-              display: "flex", alignItems: "center", gap: "8px",
+              boxShadow: loading ? "none" : "0 8px 24px rgba(99,102,241,0.45)",
+              letterSpacing: "-0.01em",
             }}
           >
             {loading ? "⏳ Генерирую..." : "✨ Сгенерировать карусель"}
           </button>
         </div>
-        {error && <div style={{ color: "#f87171", fontSize: "13px" }}>⚠ {error}</div>}
+        {error && <div style={{ color: "#f87171", fontSize: "13px", padding: "10px 14px", background: "rgba(239,68,68,0.1)", borderRadius: "10px", border: "1px solid rgba(239,68,68,0.2)" }}>⚠ {error}</div>}
       </div>
 
       {/* Results */}
       {result && (
         <div>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px" }}>
             <div>
-              <div style={{ fontSize: "16px", fontWeight: 700, color: "#fff" }}>{result.title}</div>
-              <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.4)", marginTop: "4px" }}>
+              <div style={{ fontSize: "17px", fontWeight: 800, color: "#fff" }}>{result.title}</div>
+              <div style={{ fontSize: "12px", color: "rgba(129,140,248,0.7)", marginTop: "5px", letterSpacing: "0.02em" }}>
                 {result.hashtags?.join(" ")}
               </div>
             </div>
             <button
               onClick={downloadAll}
               style={{
-                padding: "9px 20px", borderRadius: "10px", fontSize: "13px", fontWeight: 600,
-                background: "rgba(99,102,241,0.15)", border: "1px solid rgba(99,102,241,0.3)",
-                color: "#a5b4fc", cursor: "pointer",
+                padding: "10px 22px", borderRadius: "12px", fontSize: "13px", fontWeight: 700,
+                background: "linear-gradient(135deg, rgba(99,102,241,0.2), rgba(139,92,246,0.15))",
+                border: "1px solid rgba(99,102,241,0.35)", color: "#a5b4fc", cursor: "pointer",
+                letterSpacing: "-0.01em",
               }}
             >
               ↓ Скачать все PNG
             </button>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "16px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: "20px" }}>
             {result.slides.map((slide, i) => (
-              <div key={i} style={{ borderRadius: "12px", overflow: "hidden", border: "1px solid rgba(255,255,255,0.08)", background: "#0a0b1e" }}>
-                <canvas
-                  ref={el => { canvasRefs.current[i] = el; }}
-                  style={{ width: "100%", height: "auto", display: "block" }}
-                />
-                <div style={{ padding: "10px 12px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.35)", textTransform: "capitalize" }}>
-                    {slide.type} · #{slide.index}
+              <div key={i} style={{ borderRadius: "16px", overflow: "hidden", boxShadow: "0 12px 40px rgba(0,0,0,0.5)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                <div ref={el => { slideRefs.current[i] = el; }}>
+                  <SlideCard slide={slide} total={result.slides.length} themeKey={theme} brand={brand} onDownload={() => downloadSlide(i)} />
+                </div>
+                <div style={{ padding: "10px 14px", display: "flex", alignItems: "center", justifyContent: "space-between", background: "#0a0b1e", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+                  <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 600 }}>
+                    {slide.type} · {slide.index}/{result.slides.length}
                   </span>
                   <button
                     onClick={() => downloadSlide(i)}
                     style={{
-                      padding: "5px 14px", borderRadius: "8px", fontSize: "12px", fontWeight: 600,
+                      padding: "6px 16px", borderRadius: "8px", fontSize: "12px", fontWeight: 700,
                       background: "linear-gradient(135deg, #6366f1, #8b5cf6)", border: "none",
-                      color: "#fff", cursor: "pointer",
+                      color: "#fff", cursor: "pointer", boxShadow: "0 4px 12px rgba(99,102,241,0.4)",
                     }}
                   >
                     ↓ PNG
