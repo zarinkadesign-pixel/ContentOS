@@ -12,9 +12,11 @@ const NAV_SECTIONS = [
   {
     title: "Система",
     items: [
-      { href: "/admin",          label: "Обзор",          icon: "📊" },
-      { href: "/admin/users",    label: "Пользователи",   icon: "👤" },
-      { href: "/admin/activity", label: "Лог активности", icon: "📋" },
+      { href: "/admin",           label: "Обзор",            icon: "📊" },
+      { href: "/admin/users",     label: "Пользователи",     icon: "👤" },
+      { href: "/admin/activity",  label: "Лог активности",   icon: "📋" },
+      { href: "/admin/security",  label: "Безопасность API", icon: "🔒" },
+      { href: "/admin/roadmap",   label: "Дорожная карта",   icon: "🗺️" },
     ],
   },
   {
@@ -41,6 +43,7 @@ const NAV_SECTIONS = [
     title: "AI Система",
     items: [
       { href: "/admin/monitor", label: "Engine Monitor", icon: "⚡" },
+      { href: "/admin/skills",  label: "Claude Skills",  icon: "🧩" },
       { href: "/automation",    label: "Агенты / Engine", icon: "🤖" },
       { href: "/team",          label: "AI Команда",      icon: "🧠" },
       { href: "/hub",           label: "AI Хаб",          icon: "🌐" },
