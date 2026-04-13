@@ -8,320 +8,296 @@
 import { useEffect, useState } from "react";
 import AdminLayout from "./_components/AdminLayout";
 
-interface Stats {
-  total_users:        number;
-  paid_users:         number;
-  active_today:       number;
-  total_generations:  number;
-  generations_today:  number;
-  recent_activity:    Array<{
-    id: string;
-    email: string;
-    action: string;
-    module: string;
-    created_at: string;
-  }>;
+// ── types ──────────────────────────────────────────────────────────────────
+interface Lead {
+  id: string;
+  name: string;
+  contact?: string;
+  stage: string;
+  date: string;
+  niche?: string;
+  source?: string;
 }
 
-const CARDS = [
-  {
-    key: "total_users",
-    label: "Всего пользователей",
-    icon: "👤",
-    gradient: "linear-gradient(135deg, rgba(99,102,241,0.15) 0%, rgba(139,92,246,0.08) 100%)",
-    border: "rgba(99,102,241,0.25)",
-    glow: "rgba(99,102,241,0.12)",
-    color: "#a5b4fc",
-  },
-  {
-    key: "paid_users",
-    label: "Платные",
-    icon: "💎",
-    gradient: "linear-gradient(135deg, rgba(34,197,94,0.15) 0%, rgba(16,185,129,0.08) 100%)",
-    border: "rgba(34,197,94,0.25)",
-    glow: "rgba(34,197,94,0.12)",
-    color: "#86efac",
-  },
-  {
-    key: "active_today",
-    label: "Активны сегодня",
-    icon: "⚡",
-    gradient: "linear-gradient(135deg, rgba(234,179,8,0.15) 0%, rgba(245,158,11,0.08) 100%)",
-    border: "rgba(234,179,8,0.25)",
-    glow: "rgba(234,179,8,0.12)",
-    color: "#fde68a",
-  },
-  {
-    key: "total_generations",
-    label: "Всего генераций",
-    icon: "✨",
-    gradient: "linear-gradient(135deg, rgba(168,85,247,0.15) 0%, rgba(217,70,239,0.08) 100%)",
-    border: "rgba(168,85,247,0.25)",
-    glow: "rgba(168,85,247,0.12)",
-    color: "#e879f9",
-  },
-  {
-    key: "generations_today",
-    label: "Генераций сегодня",
-    icon: "🚀",
-    gradient: "linear-gradient(135deg, rgba(236,72,153,0.15) 0%, rgba(244,114,182,0.08) 100%)",
-    border: "rgba(236,72,153,0.25)",
-    glow: "rgba(236,72,153,0.12)",
-    color: "#f9a8d4",
-  },
-] as const;
+interface Task {
+  id: string;
+  title: string;
+  status: string; // "todo" | "in_progress" | "done"
+}
 
-const MODULE_COLORS: Record<string, { bg: string; text: string }> = {
-  auth:      { bg: "rgba(99,102,241,0.15)",  text: "#a5b4fc" },
-  generate:  { bg: "rgba(168,85,247,0.15)",  text: "#e879f9" },
-  content:   { bg: "rgba(34,197,94,0.15)",   text: "#86efac" },
-  crm:       { bg: "rgba(234,179,8,0.15)",   text: "#fde68a" },
-  admin:     { bg: "rgba(239,68,68,0.15)",   text: "#fca5a5" },
-  default:   { bg: "rgba(255,255,255,0.08)", text: "rgba(255,255,255,0.5)" },
+interface MonthlyPoint {
+  month: string;
+  revenue: number;
+}
+
+// ── constants ──────────────────────────────────────────────────────────────
+const BG     = "#050710";
+const CARD   = "#0d1126";
+const CARD2  = "#121630";
+const ACCENT = "#5c6af0";
+const TEXT   = "#e4e9ff";
+const TEXT2  = "#6b7db3";
+
+const STAGE_LABELS: Record<string, string> = {
+  new:        "Новый",
+  replied:    "Диалог",
+  call:       "Созвон",
+  interested: "Созвон",
+  contract:   "Контракт",
+  client:     "Клиент",
 };
 
-function ModuleBadge({ module }: { module: string }) {
-  const c = MODULE_COLORS[module.toLowerCase()] ?? MODULE_COLORS.default;
+const STAGE_COLORS: Record<string, { bg: string; color: string }> = {
+  new:        { bg: "rgba(92,106,240,0.18)", color: "#a5b4fc" },
+  replied:    { bg: "rgba(34,197,94,0.15)",  color: "#86efac" },
+  call:       { bg: "rgba(234,179,8,0.15)",  color: "#fde68a" },
+  interested: { bg: "rgba(234,179,8,0.15)",  color: "#fde68a" },
+  contract:   { bg: "rgba(168,85,247,0.15)", color: "#e879f9" },
+  client:     { bg: "rgba(16,185,129,0.18)", color: "#6ee7b7" },
+};
+
+// ── sub-components ─────────────────────────────────────────────────────────
+function KpiCard({ label, value, sub }: { label: string; value: string; sub?: React.ReactNode }) {
+  return (
+    <div style={{
+      background: CARD,
+      border: `1px solid rgba(92,106,240,0.18)`,
+      borderRadius: 14,
+      padding: "20px 22px",
+      display: "flex",
+      flexDirection: "column",
+      gap: 8,
+    }}>
+      <div style={{ fontSize: 11, color: TEXT2, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>
+        {label}
+      </div>
+      <div style={{ fontSize: 28, fontWeight: 800, color: TEXT, letterSpacing: "-0.02em", lineHeight: 1 }}>
+        {value}
+      </div>
+      {sub}
+    </div>
+  );
+}
+
+function ProgressBar({ pct }: { pct: number }) {
+  const clamped = Math.min(100, Math.max(0, pct));
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+        <span style={{ fontSize: 10, color: TEXT2 }}>Прогресс</span>
+        <span style={{ fontSize: 10, color: ACCENT, fontWeight: 700 }}>{clamped.toFixed(1)}%</span>
+      </div>
+      <div style={{ height: 6, borderRadius: 99, background: CARD2, overflow: "hidden" }}>
+        <div style={{
+          height: "100%",
+          width: `${clamped}%`,
+          borderRadius: 99,
+          background: `linear-gradient(90deg, ${ACCENT} 0%, #8b93f8 100%)`,
+          transition: "width 0.5s ease",
+        }} />
+      </div>
+    </div>
+  );
+}
+
+function StageBadge({ stage }: { stage: string }) {
+  const c = STAGE_COLORS[stage] ?? { bg: "rgba(255,255,255,0.07)", color: TEXT2 };
   return (
     <span style={{
       display: "inline-block",
-      padding: "2px 8px",
-      borderRadius: "20px",
-      fontSize: "10px",
+      padding: "2px 9px",
+      borderRadius: 20,
+      fontSize: 10,
       fontWeight: 600,
-      letterSpacing: "0.05em",
-      textTransform: "uppercase",
       background: c.bg,
-      color: c.text,
+      color: c.color,
     }}>
-      {module}
+      {STAGE_LABELS[stage] ?? stage}
     </span>
   );
 }
 
+// ── main component ─────────────────────────────────────────────────────────
 export default function AdminDashboard() {
-  const [stats, setStats] = useState<Stats | null>(null);
-  const [error, setError] = useState("");
+  const [income,       setIncome]       = useState(0);
+  const [goal,         setGoal]         = useState(20000);
+  const [goalPct,      setGoalPct]      = useState(0);
+  const [totalClients, setTotalClients] = useState(0);
+  const [totalLeads,   setTotalLeads]   = useState(0);
+  const [leads,        setLeads]        = useState<Lead[]>([]);
+  const [tasks,        setTasks]        = useState<Task[]>([]);
+  const [monthlyChart, setMonthlyChart] = useState<MonthlyPoint[]>([]);
+  const [loading,      setLoading]      = useState(true);
 
   useEffect(() => {
-    fetch("/api/admin/stats")
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.error) setError(d.error);
-        else setStats(d);
-      })
-      .catch(() => setError("Failed to load stats"));
+    async function load() {
+      try {
+        const [dashRes, leadsRes, tasksRes] = await Promise.all([
+          fetch("/api/dashboard"),
+          fetch("/api/leads"),
+          fetch("/api/workspace/tasks"),
+        ]);
+
+        if (dashRes.ok) {
+          const dash = await dashRes.json();
+          setIncome(dash.kpi?.total_revenue ?? 0);
+          setGoal(dash.kpi?.monthly_target ?? 20000);
+          setGoalPct(dash.kpi?.progress_pct ?? 0);
+          setTotalClients(dash.kpi?.total_clients ?? 0);
+          setTotalLeads(dash.kpi?.total_leads ?? 0);
+          if (Array.isArray(dash.monthly_chart)) setMonthlyChart(dash.monthly_chart);
+        }
+
+        if (leadsRes.ok) {
+          const leadsData = await leadsRes.json();
+          if (Array.isArray(leadsData)) setLeads(leadsData);
+        }
+
+        if (tasksRes.ok) {
+          const tasksData = await tasksRes.json();
+          if (Array.isArray(tasksData)) setTasks(tasksData);
+        }
+      } catch {
+        // keep empty state on network error
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
   }, []);
+
+  const chartMax = Math.max(...monthlyChart.map(p => p.revenue), 1);
+  const last5Leads = [...leads].reverse().slice(0, 5);
+  const pendingTasks = tasks.filter(t => t.status !== "done").slice(0, 5);
 
   return (
     <AdminLayout>
-      {/* Page header */}
-      <div style={{
-        padding: "28px 32px 0",
-        borderBottom: "1px solid rgba(255,255,255,0.05)",
-        marginBottom: "28px",
-      }}>
-        <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", paddingBottom: "20px" }}>
-          <div>
-            <div style={{
-              fontSize: "10px",
-              fontWeight: 600,
-              letterSpacing: "0.12em",
-              textTransform: "uppercase",
-              color: "rgba(99,102,241,0.8)",
-              marginBottom: "6px",
-            }}>
-              Admin Panel
-            </div>
-            <h1 style={{
-              fontSize: "22px",
-              fontWeight: 700,
-              background: "linear-gradient(135deg, #fff 0%, rgba(255,255,255,0.6) 100%)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              margin: 0,
-            }}>
-              Обзор системы
-            </h1>
-          </div>
-          <div style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-            padding: "6px 14px",
-            borderRadius: "20px",
-            background: "rgba(34,197,94,0.1)",
-            border: "1px solid rgba(34,197,94,0.2)",
-            fontSize: "11px",
-            color: "#86efac",
-            fontWeight: 600,
-          }}>
-            <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#22c55e", boxShadow: "0 0 6px #22c55e" }} />
-            Система онлайн
-          </div>
-        </div>
-      </div>
-
-      <div style={{ padding: "0 32px 32px" }}>
-        {error && (
-          <div style={{
-            marginBottom: "24px",
-            padding: "14px 18px",
-            borderRadius: "12px",
-            background: "rgba(239,68,68,0.08)",
-            border: "1px solid rgba(239,68,68,0.2)",
-            color: "#fca5a5",
-            fontSize: "13px",
-          }}>
-            ⚠️ {error}
-          </div>
-        )}
-
-        {/* Stats grid */}
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(5, 1fr)",
-          gap: "14px",
-          marginBottom: "28px",
-        }}>
-          {CARDS.map(({ key, label, icon, gradient, border, glow, color }) => (
-            <div
-              key={key}
-              style={{
-                background: gradient,
-                border: `1px solid ${border}`,
-                borderRadius: "14px",
-                padding: "18px",
-                boxShadow: `0 4px 20px ${glow}`,
-                position: "relative",
-                overflow: "hidden",
-              }}
-            >
-              <div style={{
-                position: "absolute",
-                top: "-20px",
-                right: "-10px",
-                fontSize: "52px",
-                opacity: 0.07,
-                lineHeight: 1,
-                userSelect: "none",
-              }}>{icon}</div>
-              <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.4)", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "10px" }}>
-                {label}
-              </div>
-              <div style={{ fontSize: "30px", fontWeight: 800, color, lineHeight: 1, letterSpacing: "-0.02em" }}>
-                {stats ? (stats[key] as number).toLocaleString() : "—"}
-              </div>
-              <div style={{ marginTop: "8px", fontSize: "10px", color: "rgba(255,255,255,0.2)" }}>
-                {icon} обновлено только что
-              </div>
-            </div>
-          ))}
+      <div style={{ padding: "28px 32px 0" }}>
+        <div style={{ marginBottom: 24 }}>
+          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: TEXT }}>Дашборд</h1>
+          <p style={{ margin: "4px 0 0", fontSize: 12, color: TEXT2 }}>
+            Обзор показателей · AMAImedia Producer Center
+          </p>
         </div>
 
-        {/* Recent activity */}
-        <div style={{
-          background: "rgba(255,255,255,0.02)",
-          border: "1px solid rgba(255,255,255,0.07)",
-          borderRadius: "16px",
-          overflow: "hidden",
-        }}>
-          <div style={{
-            padding: "16px 24px",
-            borderBottom: "1px solid rgba(255,255,255,0.06)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}>
-            <div>
-              <h2 style={{ margin: 0, fontSize: "14px", fontWeight: 600, color: "rgba(255,255,255,0.85)" }}>
-                Последняя активность
-              </h2>
-              <p style={{ margin: "2px 0 0", fontSize: "11px", color: "rgba(255,255,255,0.3)" }}>
-                Реальное время · обновляется автоматически
-              </p>
-            </div>
-            {stats && (
-              <div style={{
-                padding: "4px 12px",
-                borderRadius: "20px",
-                background: "rgba(99,102,241,0.12)",
-                border: "1px solid rgba(99,102,241,0.2)",
-                fontSize: "11px",
-                color: "#a5b4fc",
-                fontWeight: 600,
-              }}>
-                {stats.recent_activity.length} событий
-              </div>
-            )}
-          </div>
+        {/* ── KPI grid ── */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 24 }}>
+          <KpiCard
+            label="Доход"
+            value={loading ? "…" : `$${income.toLocaleString()}`}
+          />
+          <KpiCard
+            label={`Цель $${goal.toLocaleString()}`}
+            value={loading ? "…" : `${goalPct.toFixed(1)}%`}
+            sub={<ProgressBar pct={goalPct} />}
+          />
+          <KpiCard
+            label="Лидов"
+            value={loading ? "…" : String(totalLeads)}
+          />
+          <KpiCard
+            label="Клиентов"
+            value={loading ? "…" : String(totalClients)}
+          />
+        </div>
 
-          {!stats ? (
-            <div style={{ padding: "48px", textAlign: "center", color: "rgba(255,255,255,0.2)", fontSize: "13px" }}>
-              <div style={{ fontSize: "32px", marginBottom: "12px", opacity: 0.4 }}>⏳</div>
-              Загрузка данных…
+        {/* ── two-column section ── */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 24 }}>
+          {/* LEFT — recent leads */}
+          <div style={{ background: CARD, border: `1px solid rgba(92,106,240,0.15)`, borderRadius: 14, overflow: "hidden" }}>
+            <div style={{ padding: "14px 20px", borderBottom: `1px solid rgba(255,255,255,0.05)` }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: TEXT }}>Последние лиды</span>
             </div>
-          ) : stats.recent_activity.length === 0 ? (
-            <div style={{ padding: "48px", textAlign: "center", color: "rgba(255,255,255,0.2)", fontSize: "13px" }}>
-              <div style={{ fontSize: "32px", marginBottom: "12px", opacity: 0.4 }}>📭</div>
-              Активности пока нет
-            </div>
-          ) : (
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
               <thead>
-                <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-                  {["Пользователь", "Действие", "Модуль", "Время"].map(h => (
-                    <th key={h} style={{
-                      padding: "10px 24px",
-                      textAlign: "left",
-                      fontSize: "9px",
-                      fontWeight: 700,
-                      letterSpacing: "0.1em",
-                      textTransform: "uppercase",
-                      color: "rgba(255,255,255,0.25)",
-                    }}>{h}</th>
+                <tr>
+                  {["Имя", "Контакт", "Статус", "Дата"].map(h => (
+                    <th key={h} style={{ padding: "8px 16px", textAlign: "left", fontSize: 9, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: TEXT2 }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {stats.recent_activity.map((e, i) => (
-                  <tr
-                    key={e.id}
-                    style={{
-                      borderBottom: i < stats.recent_activity.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none",
-                      transition: "background 0.1s",
-                    }}
-                    onMouseEnter={el => (el.currentTarget.style.background = "rgba(255,255,255,0.02)")}
-                    onMouseLeave={el => (el.currentTarget.style.background = "transparent")}
-                  >
-                    <td style={{ padding: "12px 24px", color: "rgba(255,255,255,0.65)", fontWeight: 500 }}>
-                      {e.email || "—"}
-                    </td>
-                    <td style={{ padding: "12px 24px" }}>
-                      <span style={{
-                        display: "inline-block",
-                        padding: "3px 10px",
-                        borderRadius: "6px",
-                        background: "rgba(168,85,247,0.12)",
-                        color: "#c084fc",
-                        fontSize: "12px",
-                        fontWeight: 500,
-                      }}>
-                        {e.action}
-                      </span>
-                    </td>
-                    <td style={{ padding: "12px 24px" }}>
-                      <ModuleBadge module={e.module} />
-                    </td>
-                    <td style={{ padding: "12px 24px", color: "rgba(255,255,255,0.3)", fontFamily: "monospace", fontSize: "11px" }}>
-                      {new Date(e.created_at).toLocaleString("ru-RU", {
-                        day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit"
-                      })}
-                    </td>
+                {!loading && last5Leads.length === 0 && (
+                  <tr><td colSpan={4} style={{ padding: "24px 16px", textAlign: "center", color: TEXT2, fontSize: 12 }}>Нет лидов</td></tr>
+                )}
+                {last5Leads.map((lead, i) => (
+                  <tr key={lead.id} style={{ borderTop: `1px solid rgba(255,255,255,0.04)` }}>
+                    <td style={{ padding: "10px 16px", color: TEXT, fontWeight: 500 }}>{lead.name}</td>
+                    <td style={{ padding: "10px 16px", color: TEXT2 }}>{lead.contact ?? lead.source ?? "—"}</td>
+                    <td style={{ padding: "10px 16px" }}><StageBadge stage={lead.stage} /></td>
+                    <td style={{ padding: "10px 16px", color: TEXT2, fontFamily: "monospace", fontSize: 11 }}>{lead.date}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
+          </div>
+
+          {/* RIGHT — upcoming tasks */}
+          <div style={{ background: CARD, border: `1px solid rgba(92,106,240,0.15)`, borderRadius: 14, overflow: "hidden" }}>
+            <div style={{ padding: "14px 20px", borderBottom: `1px solid rgba(255,255,255,0.05)` }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: TEXT }}>Ближайшие задачи</span>
+            </div>
+            <div style={{ padding: "8px 0" }}>
+              {!loading && pendingTasks.length === 0 && (
+                <div style={{ padding: "24px 20px", textAlign: "center", color: TEXT2, fontSize: 12 }}>Нет активных задач</div>
+              )}
+              {pendingTasks.map((task, i) => (
+                <div key={task.id} style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 10,
+                  padding: "10px 20px",
+                  borderBottom: i < pendingTasks.length - 1 ? `1px solid rgba(255,255,255,0.04)` : "none",
+                }}>
+                  <div style={{
+                    flexShrink: 0,
+                    width: 18,
+                    height: 18,
+                    borderRadius: 5,
+                    border: `1.5px solid rgba(92,106,240,0.4)`,
+                    background: task.status === "in_progress" ? "rgba(92,106,240,0.2)" : "transparent",
+                    marginTop: 1,
+                  }} />
+                  <span style={{ fontSize: 12, color: TEXT, lineHeight: 1.5 }}>{task.title}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* ── bar chart ── */}
+        <div style={{ background: CARD, border: `1px solid rgba(92,106,240,0.15)`, borderRadius: 14, padding: "20px 24px", marginBottom: 28 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+            <span style={{ fontSize: 14, fontWeight: 700, color: TEXT }}>Доходы по месяцам</span>
+          </div>
+
+          {monthlyChart.length === 0 && !loading && (
+            <div style={{ textAlign: "center", padding: "32px 0", color: TEXT2, fontSize: 13 }}>Нет данных</div>
+          )}
+
+          {monthlyChart.length > 0 && (
+            <div style={{ display: "flex", alignItems: "flex-end", gap: 12, height: 120 }}>
+              {monthlyChart.map((pt, i) => {
+                const barH = chartMax > 0 ? Math.max(4, (pt.revenue / chartMax) * 100) : 4;
+                return (
+                  <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+                    <span style={{ fontSize: 9, color: pt.revenue > 0 ? TEXT2 : "transparent", fontWeight: 600 }}>
+                      ${pt.revenue.toLocaleString()}
+                    </span>
+                    <div style={{
+                      width: "100%",
+                      height: `${barH}%`,
+                      borderRadius: "4px 4px 0 0",
+                      background: pt.revenue > 0
+                        ? `linear-gradient(180deg, ${ACCENT} 0%, #3a47c8 100%)`
+                        : `rgba(255,255,255,0.05)`,
+                      transition: "height 0.4s ease",
+                    }} />
+                    <span style={{ fontSize: 10, color: TEXT2, fontWeight: 600 }}>{pt.month}</span>
+                  </div>
+                );
+              })}
+            </div>
           )}
         </div>
       </div>

@@ -1,0 +1,22 @@
+# Next.js
+.next/
+out/
+
+# Node
+node_modules/
+npm-debug.log*
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# Vercel
+.vercel
+
+# Debug
+bugs.log
+*.log
+
+# Build info
+tsconfig.tsbuildinfo

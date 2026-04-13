@@ -9,7 +9,28 @@ import { useState } from "react";
 import AdminLayout from "../_components/AdminLayout";
 
 /* ─── DATA ─── */
-const API_GROUPS = [
+interface ApiEntry {
+  name: string;
+  env: string;
+  usage: string;
+  scope: string;
+  console: string;
+  risk: string;
+  note?: string;
+}
+
+interface ApiGroup {
+  id: string;
+  icon: string;
+  title: string;
+  color: string;
+  borderColor: string;
+  bgColor: string;
+  textColor: string;
+  apis: ApiEntry[];
+}
+
+const API_GROUPS: ApiGroup[] = [
   {
     id: "ai",
     icon: "🧠",

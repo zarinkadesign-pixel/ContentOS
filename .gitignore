@@ -1,32 +1,34 @@
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-*.session
-.env
-.env.*
-*.log
-*.tmp
-pc_data/
-logs/
-venv/
-.venv/
-*.egg-info/
-dist/
-build/
-.claude/
-python/
-python_embedded/
-pip/
-cd
-operable
-Content OS.zip
+# Node
+node_modules/
 
-# Next.js
+# Next.js build artifacts
 frontend/.next/
-frontend/node_modules/
 frontend/out/
+frontend/tsconfig.tsbuildinfo
+frontend/bugs.log
+
+# Python
+agents/__pycache__/
+agents/*.pyc
+**/__pycache__/
+*.py[cod]
+
+# Environment secrets — NEVER commit
+.env
+.env.local
+.env.*.local
+agents/.env
 frontend/.env.local
 
-# Backend
-backend/__pycache__/
+# Claude Code internals
+.claude/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Archives
+*.zip
+
+# Vercel
+.vercel

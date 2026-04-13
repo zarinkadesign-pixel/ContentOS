@@ -1,6 +1,1 @@
-{
-  "version": 2,
-  "builds": [{"src": "contentOS_producer.html", "use": "@vercel/static"}],
-  "routes": [{"src": "/(.*)", "dest": "/contentOS_producer.html"}],
-  "cleanUrls": true
-}
+{"framework":"nextjs","buildCommand":"npm run build","outputDirectory":".next","installCommand":"npm install"}

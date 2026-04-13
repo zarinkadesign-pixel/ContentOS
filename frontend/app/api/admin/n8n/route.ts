@@ -9,8 +9,8 @@ import { cookies } from "next/headers";
 const N8N_BASE = process.env.N8N_URL ?? "http://localhost:5678";
 const N8N_API_KEY = process.env.N8N_API_KEY ?? "";
 
-function adminOnly() {
-  const jar = cookies();
+async function adminOnly() {
+  const jar = await cookies();
   const token = jar.get("admin_token")?.value;
   if (!token || token !== process.env.ADMIN_TOKEN) return false;
   return true;
@@ -26,7 +26,7 @@ async function n8nFetch(path: string, init?: RequestInit) {
 }
 
 export async function GET(req: NextRequest) {
-  if (!adminOnly()) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!await adminOnly()) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const action = req.nextUrl.searchParams.get("action") ?? "workflows";
 
@@ -68,7 +68,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  if (!adminOnly()) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!await adminOnly()) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();
   const { action, workflowId, active } = body;
